@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "crates/seatshell-admin-daemon",
+    "crates/seatshell-common",
+    "crates/seatshell-config",
+    "crates/seatshell-notifications",
+    "crates/seatshell-protocol",
+    "crates/seatshell-session",
+    "crates/seatshell-shell",
+    "crates/seatshell-user-agent",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://example.invalid/seatshell"
+rust-version = "1.85"
+version = "1.0.0"
+
+[workspace.dependencies]
+anyhow = "1"
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+slint = "1"
+slint-build = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "signal"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+walkdir = "2"
+zbus = "5"
+shlex = "1"
+
+seatshell-common = { path = "crates/seatshell-common" }
+seatshell-config = { path = "crates/seatshell-config" }
+seatshell-protocol = { path = "crates/seatshell-protocol" }

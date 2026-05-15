@@ -1,0 +1,50 @@
+import { Button, LineEdit } from "std-widgets.slint";
+
+export struct LauncherApp {
+    id: string,
+    name: string,
+    exec: string,
+}
+
+export component Launcher inherits Rectangle {
+    in property <string> accent: "#4a90e2";
+    in property <[LauncherApp]> apps;
+
+    callback launch-app(string);
+
+    background: #111821ee;
+
+    Rectangle {
+        x: 32px;
+        y: 32px;
+        width: 420px;
+        height: 420px;
+        background: #182230;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: #2d3b4c;
+
+        VerticalLayout {
+            padding: 18px;
+            spacing: 12px;
+
+            Text {
+                text: "Launcher";
+                color: #f2f6fb;
+                font-size: 24px;
+                font-weight: 700;
+            }
+
+            LineEdit {
+                placeholder-text: "Search apps";
+            }
+
+            for app in root.apps: Button {
+                text: app.name;
+                clicked => {
+                    root.launch-app(app.id);
+                }
+            }
+        }
+    }
+}

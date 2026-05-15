@@ -1,0 +1,43 @@
+import { Button } from "std-widgets.slint";
+
+export component Panel inherits Rectangle {
+    in property <string> accent: "#4a90e2";
+    callback toggle-launcher();
+    callback toggle-overview();
+
+    background: #0c1118;
+    border-width: 1px;
+    border-color: #202a36;
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 10px;
+        alignment: center;
+
+        Button {
+            text: "SeatShell";
+            clicked => {
+                root.toggle-overview();
+            }
+        }
+
+        Button {
+            text: "Launcher";
+            clicked => {
+                root.toggle-launcher();
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            background: transparent;
+        }
+
+        Text {
+            text: "SingleSeat ready";
+            color: #c9d3df;
+            font-size: 13px;
+        }
+    }
+}

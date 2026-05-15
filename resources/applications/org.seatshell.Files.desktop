@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=SeatShell Files
+Exec=thunar
+Icon=system-file-manager
+Categories=System;FileManager;

@@ -1,0 +1,70 @@
+import { Panel } from "panel.slint";
+import { Launcher, LauncherApp } from "launcher.slint";
+import { Overview, UserSession } from "overview.slint";
+
+export component AppWindow inherits Window {
+    in property <int> panel-height: 42;
+    in property <string> accent: "#4a90e2";
+    in property <[LauncherApp]> launcher-apps;
+    in property <[UserSession]> user-sessions;
+    in-out property <bool> show-launcher: false;
+    in-out property <bool> show-overview: false;
+    in property <bool> overview-enabled: true;
+
+    callback toggle-launcher();
+    callback toggle-overview();
+    callback launch-app(string);
+
+    title: "SeatShell";
+    width: 1200px;
+    height: 720px;
+    background: #10141b;
+
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        Rectangle {
+            background: #151b24;
+            vertical-stretch: 1;
+
+            if show-overview: Overview {
+                accent: root.accent;
+                sessions: root.user-sessions;
+            }
+
+            if show-launcher: Launcher {
+                accent: root.accent;
+                apps: root.launcher-apps;
+                launch-app(command) => {
+                    root.launch-app(command);
+                }
+            }
+
+            if !show-overview && !show-launcher: Rectangle {
+                background: #10141b;
+
+                Text {
+                    text: "SeatShell desktop prototype";
+                    color: #dfe7f3;
+                    font-size: 20px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        Panel {
+            height: root.panel-height * 1px;
+            accent: root.accent;
+            toggle-launcher => {
+                root.toggle-launcher();
+            }
+            toggle-overview => {
+                if root.overview-enabled {
+                    root.toggle-overview();
+                }
+            }
+        }
+    }
+}

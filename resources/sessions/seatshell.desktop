@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=SeatShell
+Comment=Rust/Slint Wayland desktop shell with SingleSeat Overview
+Exec=seatshell-session
+Type=Application
+DesktopNames=SeatShell

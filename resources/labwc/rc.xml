@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<labwc_config>
+  <keyboard>
+    <keybind key="W-space">
+      <action name="Execute" command="seatshell-shell --launcher" />
+    </keybind>
+    <keybind key="W-Tab">
+      <action name="Execute" command="seatshell-shell --overview" />
+    </keybind>
+    <keybind key="W-Return">
+      <action name="Execute" command="alacritty" />
+    </keybind>
+    <keybind key="W-q">
+      <action name="Close" />
+    </keybind>
+  </keyboard>
+</labwc_config>

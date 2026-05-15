@@ -1,0 +1,36 @@
+import { UserCard } from "user-card.slint";
+
+export struct UserSession {
+    username: string,
+    state: string,
+    action: string,
+}
+
+export component Overview inherits Rectangle {
+    in property <string> accent: "#4a90e2";
+    in property <[UserSession]> sessions;
+    background: #0d1219f4;
+
+    VerticalLayout {
+        padding: 32px;
+        spacing: 22px;
+
+        Text {
+            text: "SingleSeat Overview";
+            color: #f4f7fb;
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        HorizontalLayout {
+            spacing: 18px;
+
+            for session in root.sessions: UserCard {
+                username: session.username;
+                state: session.state;
+                action: session.action;
+                accent: root.accent;
+            }
+        }
+    }
+}

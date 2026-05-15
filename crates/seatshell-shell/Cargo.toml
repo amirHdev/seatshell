@@ -1,0 +1,19 @@
+[package]
+name = "seatshell-shell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+seatshell-common.workspace = true
+seatshell-config.workspace = true
+slint.workspace = true
+shlex.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+walkdir.workspace = true
+
+[build-dependencies]
+slint-build.workspace = true

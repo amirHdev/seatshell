@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=SeatShell Terminal
+Exec=alacritty
+Icon=utilities-terminal
+Categories=System;TerminalEmulator;
