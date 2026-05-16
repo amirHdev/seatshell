@@ -5,10 +5,13 @@
       <action name="Execute" command="konsole" />
     </item>
     <item label="Launcher">
-      <action name="Execute" command="seatshell-shell --launcher" />
+      <action name="Execute" command="seatshell-shell --show-launcher" />
     </item>
     <item label="SingleSeat Overview">
-      <action name="Execute" command="seatshell-shell --overview" />
+      <action name="Execute" command="seatshell-shell --show-overview" />
+    </item>
+    <item label="Show Desktop">
+      <action name="Execute" command="seatshell-shell --show-desktop" />
     </item>
   </menu>
 </openbox_menu>

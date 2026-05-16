@@ -13,6 +13,8 @@
 - Desktop and launcher app rows spawn the parsed command argv.
 - Launcher search filters by application name, command, and desktop id.
 - Overview loads runtime session data from `seatshell-admin-daemon` over D-Bus and falls back to the current shell process when the daemon is unavailable.
+- Shell hotkeys and menu actions use the running `org.seatshell.Shell` D-Bus service for desktop, launcher, and overview control.
+- The shell applies configured top or bottom panel placement.
 
 ## Next
 

@@ -2,16 +2,19 @@
 <labwc_config>
   <keyboard>
     <keybind key="W-space">
-      <action name="Execute" command="seatshell-shell --launcher" />
+      <action name="Execute" command="seatshell-shell --toggle-launcher" />
     </keybind>
     <keybind key="W-Tab">
-      <action name="Execute" command="seatshell-shell --overview" />
+      <action name="Execute" command="seatshell-shell --toggle-overview" />
     </keybind>
     <keybind key="W-Return">
       <action name="Execute" command="konsole" />
     </keybind>
     <keybind key="W-q">
       <action name="Close" />
+    </keybind>
+    <keybind key="W-Escape">
+      <action name="Execute" command="seatshell-shell --show-desktop" />
     </keybind>
   </keyboard>
 </labwc_config>

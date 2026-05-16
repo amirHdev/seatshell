@@ -103,8 +103,14 @@ fn main() -> Result<()> {
     ui.set_power_text(power_status_text().into());
     ui.set_audio_text(audio_status_text().into());
     ui.set_overview_enabled(config.overview.enabled);
-    ui.set_show_launcher(matches!(requested_view, ShellView::Launcher));
-    ui.set_show_overview(matches!(requested_view, ShellView::Overview));
+    ui.set_show_launcher(matches!(
+        requested_view,
+        ShellView::Launcher | ShellView::ToggleLauncher
+    ));
+    ui.set_show_overview(matches!(
+        requested_view,
+        ShellView::Overview | ShellView::ToggleOverview
+    ));
     ui.set_windowed(windowed);
     ui.set_panel_on_top(matches!(config.panel.position, PanelPosition::Top));
     ui.set_show_user_switcher(config.panel.show_user_switcher && config.overview.enabled);
@@ -157,9 +163,21 @@ fn main() -> Result<()> {
                     ui.set_show_overview(false);
                     ui.set_show_notifications(false);
                 }
+                ShellView::ToggleLauncher => {
+                    ui.set_show_launcher(!ui.get_show_launcher());
+                    ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
+                    ui.set_show_notifications(false);
+                }
                 ShellView::Overview => {
                     ui.set_show_overview(true);
                     ui.set_show_launcher(false);
+                    ui.set_show_notifications(false);
+                }
+                ShellView::ToggleOverview => {
+                    ui.set_show_overview(!ui.get_show_overview());
+                    ui.set_show_launcher(false);
+                    ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
                 }
                 ShellView::Notifications => {
@@ -639,6 +657,8 @@ enum ShellView {
     Launcher = 2,
     Overview = 3,
     Notifications = 4,
+    ToggleLauncher = 5,
+    ToggleOverview = 6,
 }
 
 impl ShellView {
@@ -648,6 +668,8 @@ impl ShellView {
             2 => Self::Launcher,
             3 => Self::Overview,
             4 => Self::Notifications,
+            5 => Self::ToggleLauncher,
+            6 => Self::ToggleOverview,
             _ => Self::None,
         }
     }
@@ -744,6 +766,16 @@ impl ShellService {
             .store(ShellView::Overview as u8, Ordering::SeqCst);
     }
 
+    async fn toggle_launcher(&self) {
+        self.commands
+            .store(ShellView::ToggleLauncher as u8, Ordering::SeqCst);
+    }
+
+    async fn toggle_overview(&self) {
+        self.commands
+            .store(ShellView::ToggleOverview as u8, Ordering::SeqCst);
+    }
+
     async fn show_notifications(&self) {
         self.commands
             .store(ShellView::Notifications as u8, Ordering::SeqCst);
@@ -813,13 +845,29 @@ fn spawn_shell_service(
 }
 
 fn requested_view(args: &[String]) -> ShellView {
-    if args.iter().any(|arg| arg == "--launcher") {
+    if args.iter().any(|arg| arg == "--toggle-launcher") {
+        ShellView::ToggleLauncher
+    } else if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--launcher" | "--show-launcher"))
+    {
         ShellView::Launcher
-    } else if args.iter().any(|arg| arg == "--overview") {
+    } else if args.iter().any(|arg| arg == "--toggle-overview") {
+        ShellView::ToggleOverview
+    } else if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--overview" | "--show-overview"))
+    {
         ShellView::Overview
-    } else if args.iter().any(|arg| arg == "--notifications") {
+    } else if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--notifications" | "--show-notifications"))
+    {
         ShellView::Notifications
-    } else if args.iter().any(|arg| arg == "--desktop") {
+    } else if args
+        .iter()
+        .any(|arg| matches!(arg.as_str(), "--desktop" | "--show-desktop"))
+    {
         ShellView::Desktop
     } else {
         ShellView::None
@@ -859,6 +907,8 @@ fn request_remote_view(view: ShellView) -> Result<bool> {
             ShellView::Launcher => shell::SHOW_LAUNCHER,
             ShellView::Notifications => shell::SHOW_NOTIFICATIONS,
             ShellView::Overview => shell::SHOW_OVERVIEW,
+            ShellView::ToggleLauncher => shell::TOGGLE_LAUNCHER,
+            ShellView::ToggleOverview => shell::TOGGLE_OVERVIEW,
             ShellView::None => return Ok(false),
         };
 
@@ -913,7 +963,8 @@ fn notification_model(notifications: &[StoredNotification]) -> ModelRc<Notificat
 
 fn recent_file_model(files: &[RecentFileEntry]) -> ModelRc<DesktopFile> {
     ModelRc::new(VecModel::from(
-        files.iter()
+        files
+            .iter()
             .map(|file| DesktopFile {
                 path: file.path.clone().into(),
                 name: file.name.clone().into(),

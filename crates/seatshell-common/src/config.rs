@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct SeatShellConfig {
     pub desktop: DesktopConfig,
@@ -11,21 +11,6 @@ pub struct SeatShellConfig {
     pub control: ControlConfig,
     pub privacy: PrivacyConfig,
     pub preview: PreviewConfig,
-}
-
-impl Default for SeatShellConfig {
-    fn default() -> Self {
-        Self {
-            desktop: DesktopConfig::default(),
-            panel: PanelConfig::default(),
-            overview: OverviewConfig::default(),
-            launcher: LauncherConfig::default(),
-            admin: AdminConfig::default(),
-            control: ControlConfig::default(),
-            privacy: PrivacyConfig::default(),
-            preview: PreviewConfig::default(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -64,17 +49,12 @@ impl Default for PanelConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PanelPosition {
     Top,
+    #[default]
     Bottom,
-}
-
-impl Default for PanelPosition {
-    fn default() -> Self {
-        Self::Bottom
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -103,16 +83,11 @@ impl Default for OverviewConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OverviewStyle {
+    #[default]
     Grid,
-}
-
-impl Default for OverviewStyle {
-    fn default() -> Self {
-        Self::Grid
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -201,16 +176,11 @@ impl Default for PreviewConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PreviewBackend {
+    #[default]
     None,
     PortalPipewire,
     CompositorNative,
-}
-
-impl Default for PreviewBackend {
-    fn default() -> Self {
-        Self::None
-    }
 }

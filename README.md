@@ -15,6 +15,8 @@ This repository is at a first working release:
 - Launcher discovers `.desktop` files and launches parsed commands without brittle whitespace splitting.
 - Launcher parses comment/category metadata so the shell can present richer desktop-friendly app cards.
 - Overview is fed from runtime session data through the admin D-Bus service, with a local fallback for development.
+- The running shell owns `org.seatshell.Shell`, so labwc hotkeys and menu actions control the existing shell instead of spawning extra overview/launcher windows.
+- Configured panel position is applied, so `panel.position = "top"` moves the panel to the top edge.
 - `seatshell-user-agent` registers launch and session-info D-Bus methods.
 - `seatshell-admin-daemon` registers read-only `ListUsers`, `ListSessions`, and policy-group D-Bus methods.
 - `seatshell-session` starts labwc, the admin daemon, the user agent, and the shell from colocated binaries or an installed prefix.
@@ -60,6 +62,14 @@ For the first real Linux session pass, use the session runner or nested script:
 ```sh
 scripts/run-seatshell.sh --windowed
 scripts/run-seatshell.sh
+```
+
+With a shell already running, control that process through D-Bus:
+
+```sh
+seatshell-shell --toggle-launcher
+seatshell-shell --toggle-overview
+seatshell-shell --show-desktop
 ```
 
 Build and run the desktop shell from release binaries:
