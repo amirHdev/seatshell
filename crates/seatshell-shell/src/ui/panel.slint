@@ -2,30 +2,40 @@ import { Button } from "std-widgets.slint";
 
 export component Panel inherits Rectangle {
     in property <string> accent: "#4a90e2";
+    in property <string> clock-text;
+    in property <string> status-text: "Ready";
     callback toggle-launcher();
     callback toggle-overview();
+    callback show-desktop();
 
-    background: #0c1118;
+    background: #0b1118;
     border-width: 1px;
-    border-color: #202a36;
+    border-color: #1d2a36;
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
-        spacing: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
         alignment: center;
 
         Button {
-            text: "SeatShell";
+            text: "Desktop";
             clicked => {
-                root.toggle-overview();
+                root.show-desktop();
             }
         }
 
         Button {
-            text: "Launcher";
+            text: "Apps";
             clicked => {
                 root.toggle-launcher();
+            }
+        }
+
+        Button {
+            text: "Sessions";
+            clicked => {
+                root.toggle-overview();
             }
         }
 
@@ -35,9 +45,23 @@ export component Panel inherits Rectangle {
         }
 
         Text {
-            text: "SingleSeat ready";
+            text: root.status-text;
             color: #c9d3df;
             font-size: 13px;
+            horizontal-alignment: right;
+        }
+
+        Rectangle {
+            width: 1px;
+            height: 24px;
+            background: #263443;
+        }
+
+        Text {
+            text: root.clock-text;
+            color: #f2f6fb;
+            font-size: 14px;
+            font-weight: 700;
         }
     }
 }

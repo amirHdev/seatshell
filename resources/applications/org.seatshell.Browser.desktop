@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=SeatShell Browser
-Exec=firefox %u
+Exec=firefox-esr %u
 Icon=web-browser
 Categories=Network;WebBrowser;

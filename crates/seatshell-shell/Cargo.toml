@@ -7,13 +7,17 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+chrono.workspace = true
 seatshell-common.workspace = true
 seatshell-config.workspace = true
+seatshell-protocol.workspace = true
 slint.workspace = true
 shlex.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 walkdir.workspace = true
+zbus.workspace = true
 
 [build-dependencies]
 slint-build.workspace = true

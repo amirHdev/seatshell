@@ -9,20 +9,71 @@ export struct UserSession {
 export component Overview inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <[UserSession]> sessions;
-    background: #0d1219f4;
+    in property <string> status-text;
+    background: #07111bf4;
 
     VerticalLayout {
-        padding: 32px;
-        spacing: 22px;
+        padding: 28px;
+        spacing: 18px;
 
-        Text {
-            text: "SingleSeat Overview";
-            color: #f4f7fb;
-            font-size: 32px;
-            font-weight: 700;
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: center;
+
+            Text {
+                text: "SingleSeat Overview";
+                color: #f4f7fb;
+                font-size: 30px;
+                font-weight: 700;
+                horizontal-stretch: 1;
+            }
+
+            Text {
+                text: root.status-text;
+                color: #93a4b8;
+                font-size: 13px;
+            }
         }
 
         HorizontalLayout {
+            height: 44px;
+            spacing: 10px;
+
+            Rectangle {
+                background: #101a24;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #28394b;
+                horizontal-stretch: 1;
+
+                Text {
+                    text: "Read-only session discovery is active";
+                    color: #cbd5e1;
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                width: 240px;
+                background: #101a24;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #28394b;
+
+                Text {
+                    text: root.sessions.length + " visible sessions";
+                    color: #cbd5e1;
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            vertical-stretch: 1;
             spacing: 18px;
 
             for session in root.sessions: UserCard {

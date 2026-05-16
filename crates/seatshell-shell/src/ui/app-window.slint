@@ -1,55 +1,201 @@
 import { Panel } from "panel.slint";
 import { Launcher, LauncherApp } from "launcher.slint";
 import { Overview, UserSession } from "overview.slint";
+import { Button } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
     in property <int> panel-height: 42;
     in property <string> accent: "#4a90e2";
     in property <[LauncherApp]> launcher-apps;
     in property <[UserSession]> user-sessions;
+    in property <string> clock-text;
+    in property <string> status-text: "SeatShell ready";
+    in property <string> launcher-query;
+    in property <int> launcher-count;
+    in property <bool> windowed: false;
     in-out property <bool> show-launcher: false;
     in-out property <bool> show-overview: false;
     in property <bool> overview-enabled: true;
 
     callback toggle-launcher();
     callback toggle-overview();
+    callback show-desktop();
     callback launch-app(string);
+    callback launcher-search-changed(string);
+    callback launcher-accept-search();
 
     title: "SeatShell";
-    width: 1200px;
-    height: 720px;
-    background: #10141b;
+    width: 1366px;
+    height: 768px;
+    no-frame: !root.windowed;
+    full-screen: !root.windowed;
+    background: #09111a;
 
     VerticalLayout {
         padding: 0px;
         spacing: 0px;
 
         Rectangle {
-            background: #151b24;
+            background: #09111a;
             vertical-stretch: 1;
 
             if show-overview: Overview {
                 accent: root.accent;
                 sessions: root.user-sessions;
+                status-text: root.status-text;
             }
 
             if show-launcher: Launcher {
                 accent: root.accent;
                 apps: root.launcher-apps;
+                query: root.launcher-query;
+                app-count: root.launcher-count;
                 launch-app(command) => {
                     root.launch-app(command);
+                }
+                search-changed(text) => {
+                    root.launcher-search-changed(text);
+                }
+                accept-search => {
+                    root.launcher-accept-search();
                 }
             }
 
             if !show-overview && !show-launcher: Rectangle {
-                background: #10141b;
+                background: #09111a;
 
-                Text {
-                    text: "SeatShell desktop prototype";
-                    color: #dfe7f3;
-                    font-size: 20px;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                VerticalLayout {
+                    padding: 28px;
+                    spacing: 22px;
+
+                    HorizontalLayout {
+                        spacing: 16px;
+                        alignment: center;
+
+                        Text {
+                            text: "SeatShell";
+                            color: #f4f7fb;
+                            font-size: 34px;
+                            font-weight: 800;
+                            horizontal-stretch: 1;
+                        }
+
+                        Text {
+                            text: root.clock-text;
+                            color: #d6e2ef;
+                            font-size: 20px;
+                            font-weight: 700;
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: #243140;
+                    }
+
+                    HorizontalLayout {
+                        vertical-stretch: 1;
+                        spacing: 18px;
+
+                        Rectangle {
+                            width: 360px;
+                            background: #101a24;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: #2b3d50;
+
+                            VerticalLayout {
+                                padding: 18px;
+                                spacing: 12px;
+
+                                Text {
+                                    text: "Workspace";
+                                    color: #f2f6fb;
+                                    font-size: 22px;
+                                    font-weight: 700;
+                                }
+
+                                Text {
+                                    text: root.status-text;
+                                    color: #aab6c5;
+                                    font-size: 14px;
+                                }
+
+                                Rectangle {
+                                    height: 1px;
+                                    background: #263648;
+                                }
+
+                                Text {
+                                    text: "Apps are available from the panel launcher. Session discovery is available from Sessions.";
+                                    color: #cbd5e1;
+                                    font-size: 14px;
+                                    wrap: word-wrap;
+                                }
+
+                                Rectangle {
+                                    vertical-stretch: 1;
+                                    background: transparent;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: #0e1721;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: #29394c;
+                            horizontal-stretch: 1;
+
+                            VerticalLayout {
+                                padding: 18px;
+                                spacing: 14px;
+
+                                Text {
+                                    text: "Quick Launch";
+                                    color: #f2f6fb;
+                                    font-size: 22px;
+                                    font-weight: 700;
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 10px;
+
+                                    Button {
+                                        text: "Applications";
+                                        clicked => {
+                                            root.toggle-launcher();
+                                        }
+                                    }
+
+                                    Button {
+                                        text: "Sessions";
+                                        clicked => {
+                                            if root.overview-enabled {
+                                                root.toggle-overview();
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    vertical-stretch: 1;
+                                    background: #0a121b;
+                                    border-radius: 6px;
+                                    border-width: 1px;
+                                    border-color: #213144;
+
+                                    Text {
+                                        text: "Desktop surface ready";
+                                        color: #93a4b8;
+                                        font-size: 15px;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -57,6 +203,11 @@ export component AppWindow inherits Window {
         Panel {
             height: root.panel-height * 1px;
             accent: root.accent;
+            clock-text: root.clock-text;
+            status-text: root.status-text;
+            show-desktop => {
+                root.show-desktop();
+            }
             toggle-launcher => {
                 root.toggle-launcher();
             }

@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=SeatShell Files
-Exec=thunar
+Exec=dolphin
 Icon=system-file-manager
-Categories=System;FileManager;
+Categories=System;FileManager;FileTools;

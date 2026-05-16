@@ -13,6 +13,7 @@ async fn main() -> Result<()> {
     let dev_dry_run = std::env::args().any(|arg| arg == "--dev-dry-run");
     let commands = [
         vec!["labwc"],
+        vec!["seatshell-admin-daemon"],
         vec!["seatshell-user-agent"],
         vec!["seatshell-shell"],
     ];
@@ -26,17 +27,20 @@ async fn main() -> Result<()> {
 
     if dev_dry_run {
         println!("labwc");
+        println!("cargo run -p seatshell-admin-daemon -- --dry-run");
         println!("cargo run -p seatshell-user-agent -- --dry-run");
         println!("cargo run -p seatshell-shell");
         return Ok(());
     }
 
     let mut labwc = spawn(&commands[0]).context("failed to start labwc")?;
-    let mut user_agent = spawn(&commands[1]).context("failed to start seatshell-user-agent")?;
-    let mut shell = spawn(&commands[2]).context("failed to start seatshell-shell")?;
+    let mut admin_daemon = spawn(&commands[1]).context("failed to start seatshell-admin-daemon")?;
+    let mut user_agent = spawn(&commands[2]).context("failed to start seatshell-user-agent")?;
+    let mut shell = spawn(&commands[3]).context("failed to start seatshell-shell")?;
 
     tokio::select! {
         status = labwc.wait() => tracing::info!(?status, "labwc exited"),
+        status = admin_daemon.wait() => tracing::info!(?status, "admin daemon exited"),
         status = user_agent.wait() => tracing::info!(?status, "user agent exited"),
         status = shell.wait() => tracing::info!(?status, "shell exited"),
         _ = tokio::signal::ctrl_c() => tracing::info!("received shutdown signal"),

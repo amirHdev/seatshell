@@ -147,20 +147,20 @@ fn fallback_apps() -> Vec<AppEntry> {
         AppEntry {
             id: "org.seatshell.Terminal".into(),
             name: "Terminal".into(),
-            exec: "alacritty".into(),
-            argv: vec!["alacritty".into()],
+            exec: "konsole".into(),
+            argv: vec!["konsole".into()],
         },
         AppEntry {
             id: "org.seatshell.Files".into(),
             name: "Files".into(),
-            exec: "thunar".into(),
-            argv: vec!["thunar".into()],
+            exec: "dolphin".into(),
+            argv: vec!["dolphin".into()],
         },
         AppEntry {
             id: "org.seatshell.Browser".into(),
             name: "Browser".into(),
-            exec: "firefox".into(),
-            argv: vec!["firefox".into()],
+            exec: "firefox-esr".into(),
+            argv: vec!["firefox-esr".into()],
         },
     ]
 }

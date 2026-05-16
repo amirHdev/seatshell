@@ -1,4 +1,4 @@
-import { Button, LineEdit } from "std-widgets.slint";
+import { Button, LineEdit, ScrollView } from "std-widgets.slint";
 
 export struct LauncherApp {
     id: string,
@@ -9,40 +9,89 @@ export struct LauncherApp {
 export component Launcher inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <[LauncherApp]> apps;
+    in property <string> query;
+    in property <int> app-count;
 
     callback launch-app(string);
+    callback search-changed(string);
+    callback accept-search();
 
-    background: #111821ee;
+    background: #07111bee;
 
     Rectangle {
-        x: 32px;
-        y: 32px;
-        width: 420px;
-        height: 420px;
-        background: #182230;
+        x: 28px;
+        y: 28px;
+        width: min(root.width - 56px, 720px);
+        height: min(root.height - 56px, 620px);
+        background: #111a24;
         border-radius: 8px;
         border-width: 1px;
-        border-color: #2d3b4c;
+        border-color: #304154;
 
         VerticalLayout {
             padding: 18px;
             spacing: 12px;
 
-            Text {
-                text: "Launcher";
-                color: #f2f6fb;
-                font-size: 24px;
-                font-weight: 700;
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: center;
+
+                Text {
+                    text: "Applications";
+                    color: #f2f6fb;
+                    font-size: 24px;
+                    font-weight: 700;
+                    horizontal-stretch: 1;
+                }
+
+                Text {
+                    text: root.app-count + " apps";
+                    color: #93a4b8;
+                    font-size: 13px;
+                }
             }
 
             LineEdit {
+                text: root.query;
                 placeholder-text: "Search apps";
+                edited(text) => {
+                    root.search-changed(text);
+                }
+                accepted(text) => {
+                    root.accept-search();
+                }
             }
 
-            for app in root.apps: Button {
-                text: app.name;
-                clicked => {
-                    root.launch-app(app.id);
+            if root.app-count == 0: Rectangle {
+                height: 84px;
+                background: #0c141d;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #233244;
+
+                Text {
+                    text: "No matching applications";
+                    color: #aab6c5;
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            ScrollView {
+                vertical-stretch: 1;
+                viewport-width: self.width;
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    for app in root.apps: Button {
+                        height: 42px;
+                        text: app.name + "  -  " + app.exec;
+                        clicked => {
+                            root.launch-app(app.id);
+                        }
+                    }
                 }
             }
         }

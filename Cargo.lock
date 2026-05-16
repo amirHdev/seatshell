@@ -4062,14 +4062,18 @@ name = "seatshell-shell"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "seatshell-common",
  "seatshell-config",
+ "seatshell-protocol",
  "shlex",
  "slint",
  "slint-build",
+ "tokio",
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "zbus",
 ]
 
 [[package]]

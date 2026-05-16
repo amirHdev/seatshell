@@ -8,7 +8,7 @@
       <action name="Execute" command="seatshell-shell --overview" />
     </keybind>
     <keybind key="W-Return">
-      <action name="Execute" command="alacritty" />
+      <action name="Execute" command="konsole" />
     </keybind>
     <keybind key="W-q">
       <action name="Close" />

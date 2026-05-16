@@ -4,12 +4,12 @@ export component UserCard inherits Rectangle {
     in property <string> action;
     in property <string> accent: "#4a90e2";
 
-    width: 260px;
-    height: 170px;
-    background: #172130;
+    width: 280px;
+    height: 176px;
+    background: #121c27;
     border-radius: 8px;
     border-width: 1px;
-    border-color: #314255;
+    border-color: #31475c;
 
     VerticalLayout {
         padding: 16px;
@@ -18,7 +18,7 @@ export component UserCard inherits Rectangle {
         Text {
             text: root.username;
             color: #f2f6fb;
-            font-size: 22px;
+            font-size: 21px;
             font-weight: 700;
         }
 
@@ -32,6 +32,8 @@ export component UserCard inherits Rectangle {
             vertical-stretch: 1;
             background: #0f151e;
             border-radius: 6px;
+            border-width: 1px;
+            border-color: #263648;
 
             Text {
                 text: root.action;

@@ -2,7 +2,7 @@
 <openbox_menu>
   <menu id="root-menu" label="SeatShell">
     <item label="Terminal">
-      <action name="Execute" command="alacritty" />
+      <action name="Execute" command="konsole" />
     </item>
     <item label="Launcher">
       <action name="Execute" command="seatshell-shell --launcher" />
