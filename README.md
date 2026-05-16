@@ -10,7 +10,8 @@ This repository is at a first working release:
 
 - Cargo workspace packages are versioned at 1.0.0.
 - Shared config, session, protocol, and notification models build.
-- Slint shell window renders a panel, launcher, and SingleSeat Overview.
+- Slint shell window renders a desktop surface, panel, launcher, and SingleSeat Overview.
+- Desktop and launcher views expose clickable application rows with search/filter support.
 - Launcher discovers `.desktop` files and launches parsed commands without brittle whitespace splitting.
 - Overview is fed from runtime session data through the admin D-Bus service, with a local fallback for development.
 - `seatshell-user-agent` registers launch and session-info D-Bus methods.
@@ -27,6 +28,7 @@ cargo run -p seatshell-session -- --dry-run
 cargo run -p seatshell-session -- --dev-dry-run
 cargo run -p seatshell-admin-daemon
 cargo run -p seatshell-user-agent
+cargo run -p seatshell-shell -- --windowed
 ```
 
 Build and run the desktop shell from release binaries:

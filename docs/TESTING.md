@@ -38,7 +38,8 @@ seatshell-user-agent &
 Before tagging a desktop release, verify in that Linux/labwc session that:
 
 - `seatshell-shell` starts without compositor or Slint backend errors.
-- the panel can toggle launcher and overview.
+- the panel can toggle desktop, launcher, and overview.
+- launcher search filters application rows and Enter launches the first match.
 - launcher entries from `resources/applications` appear and launch expected commands available in the VM.
 - `seatshell-user-agent` owns `org.seatshell.UserAgent.u<uid>` on the session bus.
 - `seatshell-admin-daemon` owns `org.seatshell.Admin` and returns users/sessions over D-Bus.

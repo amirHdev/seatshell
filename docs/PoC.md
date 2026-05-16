@@ -4,13 +4,14 @@
 
 - Workspace packages are versioned at 1.0.0.
 - Shared config, session, protocol, and notification models build.
-- Shell renders a Slint panel, launcher, and SingleSeat Overview.
+- Shell renders a Slint desktop surface, panel, launcher, and SingleSeat Overview.
 - Session launcher starts labwc, the admin daemon, the user agent, and the shell; it can show production and development process plans with `--dry-run` and `--dev-dry-run`.
 - User agent registers the current user's D-Bus service and exposes launch/session-info methods.
 - Admin daemon registers the admin D-Bus service and exposes read-only user/session discovery.
 - Launcher apps are provided by Rust through a Slint model.
 - Launcher parses development and system `.desktop` files.
-- Launcher button clicks spawn the parsed command argv.
+- Desktop and launcher app rows spawn the parsed command argv.
+- Launcher search filters by application name, command, and desktop id.
 - Overview loads runtime session data from `seatshell-admin-daemon` over D-Bus and falls back to the current shell process when the daemon is unavailable.
 
 ## Next

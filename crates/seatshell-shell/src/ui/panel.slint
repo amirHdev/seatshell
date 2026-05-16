@@ -4,6 +4,8 @@ export component Panel inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <string> clock-text;
     in property <string> status-text: "Ready";
+    in property <bool> show-launcher: false;
+    in property <bool> show-overview: false;
     callback toggle-launcher();
     callback toggle-overview();
     callback show-desktop();
@@ -19,21 +21,21 @@ export component Panel inherits Rectangle {
         alignment: center;
 
         Button {
-            text: "Desktop";
+            text: !root.show-launcher && !root.show-overview ? "Desktop *" : "Desktop";
             clicked => {
                 root.show-desktop();
             }
         }
 
         Button {
-            text: "Apps";
+            text: root.show-launcher ? "Apps *" : "Apps";
             clicked => {
                 root.toggle-launcher();
             }
         }
 
         Button {
-            text: "Sessions";
+            text: root.show-overview ? "Sessions *" : "Sessions";
             clicked => {
                 root.toggle-overview();
             }

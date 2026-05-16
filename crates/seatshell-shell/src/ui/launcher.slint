@@ -1,4 +1,5 @@
 import { Button, LineEdit, ScrollView } from "std-widgets.slint";
+import { AppRow } from "app-row.slint";
 
 export struct LauncherApp {
     id: string,
@@ -15,6 +16,7 @@ export component Launcher inherits Rectangle {
     callback launch-app(string);
     callback search-changed(string);
     callback accept-search();
+    callback close();
 
     background: #07111bee;
 
@@ -48,6 +50,13 @@ export component Launcher inherits Rectangle {
                     text: root.app-count + " apps";
                     color: #93a4b8;
                     font-size: 13px;
+                }
+
+                Button {
+                    text: "Close";
+                    clicked => {
+                        root.close();
+                    }
                 }
             }
 
@@ -85,9 +94,10 @@ export component Launcher inherits Rectangle {
                 VerticalLayout {
                     spacing: 8px;
 
-                    for app in root.apps: Button {
-                        height: 42px;
-                        text: app.name + "  -  " + app.exec;
+                    for app in root.apps: AppRow {
+                        name: app.name;
+                        exec: app.exec;
+                        accent: root.accent;
                         clicked => {
                             root.launch-app(app.id);
                         }

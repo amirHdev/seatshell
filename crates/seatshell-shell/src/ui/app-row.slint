@@ -1,0 +1,62 @@
+export component AppRow inherits Rectangle {
+    in property <string> name;
+    in property <string> exec;
+    in property <string> accent: "#4a90e2";
+
+    callback clicked();
+
+    height: 54px;
+    background: touch.has-hover ? #172536 : #101a24;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: touch.has-hover ? #4a90e2 : #263648;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+        alignment: center;
+
+        Rectangle {
+            width: 30px;
+            height: 30px;
+            background: #4a90e2;
+            border-radius: 6px;
+
+            Text {
+                text: ">";
+                color: white;
+                font-size: 16px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.name;
+                color: #edf3fa;
+                font-size: 15px;
+                font-weight: 700;
+                overflow: elide;
+            }
+
+            Text {
+                text: root.exec;
+                color: #8fa2b7;
+                font-size: 12px;
+                overflow: elide;
+            }
+        }
+    }
+}
