@@ -8,9 +8,12 @@ rust-version.workspace = true
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
+libc.workspace = true
 seatshell-common.workspace = true
 seatshell-config.workspace = true
+seatshell-notifications = { path = "../seatshell-notifications" }
 seatshell-protocol.workspace = true
+serde.workspace = true
 slint.workspace = true
 shlex.workspace = true
 tokio.workspace = true

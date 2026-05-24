@@ -80,6 +80,34 @@ impl UserAgent {
             false,
         ))
     }
+
+    async fn list_running_apps(&self) -> zbus::fdo::Result<Vec<String>> {
+        let uid = self.uid.to_string();
+        let output = Command::new("ps")
+            .args(["-u", uid.as_str(), "-o", "comm="])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output()
+            .await
+            .map_err(|err| zbus::fdo::Error::Failed(format!("failed to list processes: {err}")))?;
+
+        if !output.status.success() {
+            return Err(zbus::fdo::Error::Failed(format!(
+                "ps exited with {}",
+                output.status
+            )));
+        }
+
+        let names = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .filter(|line| *line != "ps")
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+
+        Ok(names)
+    }
 }
 
 #[tokio::main]
@@ -99,6 +127,7 @@ async fn main() -> Result<()> {
         println!("methods:");
         println!("  - LaunchCommand");
         println!("  - LaunchDesktopFile");
+        println!("  - ListRunningApps");
         println!("  - GetSessionInfo");
         return Ok(());
     }

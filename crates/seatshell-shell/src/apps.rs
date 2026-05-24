@@ -11,6 +11,9 @@ pub struct AppEntry {
     pub name: String,
     pub exec: String,
     pub argv: Vec<String>,
+    pub detail: String,
+    pub icon_name: String,
+    pub categories: Vec<String>,
 }
 
 pub fn discover_apps() -> Vec<AppEntry> {
@@ -72,6 +75,9 @@ fn parse_desktop_file(path: &Path, base_dir: &Path) -> Option<AppEntry> {
     let mut in_desktop_entry = false;
     let mut name = None;
     let mut exec = None;
+    let mut comment = None;
+    let mut icon_name = None;
+    let mut categories = Vec::new();
     let mut no_display = false;
     let mut hidden = false;
     let mut app_type = None;
@@ -100,6 +106,16 @@ fn parse_desktop_file(path: &Path, base_dir: &Path) -> Option<AppEntry> {
             "Type" => app_type = Some(value.to_string()),
             "Name" => name = Some(value.to_string()),
             "Exec" => exec = clean_exec(value),
+            "Comment" => comment = Some(value.to_string()),
+            "Icon" => icon_name = Some(value.to_string()),
+            "Categories" => {
+                categories = value
+                    .split(';')
+                    .map(str::trim)
+                    .filter(|category| !category.is_empty())
+                    .map(ToOwned::to_owned)
+                    .collect();
+            }
             "NoDisplay" => no_display = value.eq_ignore_ascii_case("true"),
             "Hidden" => hidden = value.eq_ignore_ascii_case("true"),
             _ => {}
@@ -115,6 +131,9 @@ fn parse_desktop_file(path: &Path, base_dir: &Path) -> Option<AppEntry> {
         name: name?,
         exec: exec.as_ref()?.join(" "),
         argv: exec?,
+        detail: comment.unwrap_or_default(),
+        icon_name: icon_name.unwrap_or_default(),
+        categories,
     })
 }
 
@@ -149,24 +168,253 @@ fn fallback_apps() -> Vec<AppEntry> {
             name: "Terminal".into(),
             exec: "konsole".into(),
             argv: vec!["konsole".into()],
+            detail: "Open a terminal session".into(),
+            icon_name: "utilities-terminal".into(),
+            categories: vec!["System".into(), "TerminalEmulator".into()],
         },
         AppEntry {
             id: "org.seatshell.Files".into(),
             name: "Files".into(),
             exec: "dolphin".into(),
             argv: vec!["dolphin".into()],
+            detail: "Browse local files".into(),
+            icon_name: "system-file-manager".into(),
+            categories: vec!["System".into(), "FileManager".into()],
         },
         AppEntry {
             id: "org.seatshell.Browser".into(),
             name: "Browser".into(),
             exec: "firefox-esr".into(),
             argv: vec!["firefox-esr".into()],
+            detail: "Open a web browser".into(),
+            icon_name: "web-browser".into(),
+            categories: vec!["Network".into(), "WebBrowser".into()],
         },
     ]
 }
 
 pub fn split_command(command: &str) -> Option<Vec<String>> {
     shlex::split(command).filter(|parts| !parts.is_empty())
+}
+
+pub fn featured_apps(apps: &[AppEntry], limit: usize) -> Vec<AppEntry> {
+    let mut scored = apps
+        .iter()
+        .cloned()
+        .map(|app| (feature_score(&app), app))
+        .collect::<Vec<_>>();
+
+    scored.sort_by(|left, right| {
+        right
+            .0
+            .cmp(&left.0)
+            .then(left.1.name.to_lowercase().cmp(&right.1.name.to_lowercase()))
+    });
+
+    scored
+        .into_iter()
+        .filter(|(score, _)| *score > 0)
+        .map(|(_, app)| app)
+        .take(limit)
+        .collect()
+}
+
+pub fn app_icon_text(app: &AppEntry) -> String {
+    let icon = app.icon_name.to_lowercase();
+    let name = app.name.to_lowercase();
+
+    if category_or_text_matches(
+        app,
+        &["TerminalEmulator"],
+        &[&icon, &name],
+        &["terminal", "konsole", "kitty", "alacritty"],
+    ) {
+        return ">_".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["FileManager"],
+        &[&icon, &name],
+        &["folder", "files", "dolphin", "nautilus", "thunar"],
+    ) {
+        return "[]".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["WebBrowser"],
+        &[&icon, &name],
+        &["browser", "firefox", "chrom", "web"],
+    ) {
+        return "WB".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["Development", "IDE"],
+        &[&icon, &name],
+        &["code", "editor", "dev"],
+    ) {
+        return "</".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["AudioVideo"],
+        &[&icon, &name],
+        &["music", "video", "media", "audio"],
+    ) {
+        return "AV".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["Graphics"],
+        &[&icon, &name],
+        &["image", "photo", "draw", "graphics"],
+    ) {
+        return "PX".into();
+    }
+    if category_or_text_matches(
+        app,
+        &["System", "Settings"],
+        &[&icon, &name],
+        &["settings", "system", "config"],
+    ) {
+        return "SY".into();
+    }
+
+    let initials = app
+        .name
+        .split_whitespace()
+        .filter_map(|word| word.chars().find(|character| character.is_alphanumeric()))
+        .take(2)
+        .flat_map(|character| character.to_uppercase())
+        .collect::<String>();
+
+    if !initials.is_empty() {
+        return initials;
+    }
+
+    app.name
+        .chars()
+        .find(|character| character.is_alphanumeric())
+        .map(|character| character.to_uppercase().to_string())
+        .unwrap_or_else(|| ">".into())
+}
+
+pub fn app_icon_path(app: &AppEntry) -> Option<PathBuf> {
+    let icon_name = app.icon_name.trim();
+    if icon_name.is_empty() {
+        return None;
+    }
+
+    let icon_path = PathBuf::from(icon_name);
+    if icon_path.is_absolute() && icon_path.exists() {
+        return Some(icon_path);
+    }
+
+    let candidates = if icon_name.ends_with(".png") || icon_name.ends_with(".svg") {
+        vec![icon_name.to_string()]
+    } else {
+        vec![
+            format!("{icon_name}.svg"),
+            format!("{icon_name}.png"),
+            icon_name.to_string(),
+        ]
+    };
+
+    let search_roots = [
+        "/usr/share/icons/breeze-dark",
+        "/usr/share/icons/breeze",
+        "/usr/share/icons/hicolor",
+        "/usr/share/pixmaps",
+    ];
+    let subdirs = [
+        "apps",
+        "places",
+        "categories",
+        "devices",
+        "mimetypes",
+        "actions",
+    ];
+    let sizes = ["128", "96", "64", "48", "32", "24", "22", "16", "scalable"];
+
+    for root in search_roots {
+        let root_path = Path::new(root);
+
+        for candidate in &candidates {
+            if root_path.is_file() {
+                let direct = root_path.join(candidate);
+                if direct.exists() {
+                    return Some(direct);
+                }
+                continue;
+            }
+
+            for size in sizes {
+                let sized_direct = root_path.join(size).join(candidate);
+                if sized_direct.exists() {
+                    return Some(sized_direct);
+                }
+
+                for subdir in subdirs {
+                    let nested = root_path.join(size).join(subdir).join(candidate);
+                    if nested.exists() {
+                        return Some(nested);
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn category_or_text_matches(
+    app: &AppEntry,
+    categories: &[&str],
+    haystacks: &[&str],
+    needles: &[&str],
+) -> bool {
+    app.categories
+        .iter()
+        .any(|category| categories.iter().any(|expected| category == expected))
+        || haystacks
+            .iter()
+            .any(|haystack| needles.iter().any(|needle| haystack.contains(needle)))
+}
+
+fn feature_score(app: &AppEntry) -> u8 {
+    let mut score = 0;
+    let id = app.id.to_lowercase();
+    let name = app.name.to_lowercase();
+    let exec = app.exec.to_lowercase();
+
+    for category in &app.categories {
+        score = score.max(match category.as_str() {
+            "TerminalEmulator" => 10,
+            "FileManager" => 9,
+            "WebBrowser" => 8,
+            "Development" => 7,
+            "Office" => 6,
+            "AudioVideo" => 5,
+            "Graphics" => 4,
+            "System" => 3,
+            _ => 0,
+        });
+    }
+
+    if name.contains("terminal") || exec.contains("kitty") || exec.contains("konsole") {
+        score = score.max(10);
+    }
+    if name.contains("files") || exec.contains("dolphin") || exec.contains("nautilus") {
+        score = score.max(9);
+    }
+    if name.contains("browser") || exec.contains("firefox") || exec.contains("chrom") {
+        score = score.max(8);
+    }
+    if id.contains("code") || name.contains("code") {
+        score = score.max(7);
+    }
+
+    score
 }
 
 #[cfg(test)]
@@ -226,6 +474,7 @@ mod tests {
         assert_eq!(app.name, "Example");
         assert_eq!(app.argv, vec!["example", "--title", "Hello SeatShell"]);
         assert_eq!(app.exec, "example --title Hello SeatShell");
+        assert_eq!(app.detail, "");
 
         let _ = fs::remove_file(path);
         let _ = fs::remove_dir(dir);
@@ -234,6 +483,64 @@ mod tests {
     #[test]
     fn split_command_rejects_empty_commands() {
         assert_eq!(split_command("   "), None);
+    }
+
+    #[test]
+    fn featured_apps_prioritize_core_desktop_tools() {
+        let apps = vec![
+            AppEntry {
+                id: "notes.desktop".into(),
+                name: "Notes".into(),
+                exec: "notes".into(),
+                argv: vec!["notes".into()],
+                detail: String::new(),
+                icon_name: String::new(),
+                categories: vec!["Office".into()],
+            },
+            AppEntry {
+                id: "terminal.desktop".into(),
+                name: "Terminal".into(),
+                exec: "konsole".into(),
+                argv: vec!["konsole".into()],
+                detail: String::new(),
+                icon_name: String::new(),
+                categories: vec!["TerminalEmulator".into()],
+            },
+        ];
+
+        let featured = featured_apps(&apps, 1);
+        assert_eq!(featured.len(), 1);
+        assert_eq!(featured[0].name, "Terminal");
+    }
+
+    #[test]
+    fn app_icon_text_uses_first_letter() {
+        let app = AppEntry {
+            id: "terminal.desktop".into(),
+            name: "Terminal".into(),
+            exec: "konsole".into(),
+            argv: vec!["konsole".into()],
+            detail: String::new(),
+            icon_name: String::new(),
+            categories: vec![],
+        };
+
+        assert_eq!(app_icon_text(&app), ">_");
+    }
+
+    #[test]
+    fn app_icon_text_uses_two_initials_for_generic_apps() {
+        let app = AppEntry {
+            id: "notes.desktop".into(),
+            name: "Seat Notes".into(),
+            exec: "notes".into(),
+            argv: vec!["notes".into()],
+            detail: String::new(),
+            icon_name: String::new(),
+            categories: vec![],
+        };
+
+        assert_eq!(app_icon_text(&app), "SN");
     }
 
     fn temp_dir(label: &str) -> PathBuf {

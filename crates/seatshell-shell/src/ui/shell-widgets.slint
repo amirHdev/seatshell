@@ -1,0 +1,166 @@
+import { ShellTheme } from "shell-theme.slint";
+
+export component ShellAction inherits Rectangle {
+    in property <string> label;
+    in property <string> icon-text: "";
+    in property <bool> active: false;
+    in property <bool> quiet: false;
+    in property <bool> compact: false;
+    callback clicked();
+
+    min-width: root.compact ? 46px : 74px;
+    height: root.compact ? 30px : 32px;
+    border-radius: ShellTheme.radius-md * 1px;
+    border-width: 1px;
+    border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+    background: root.active
+        ? ShellTheme.accent-soft
+        : touch.has-hover
+            ? ShellTheme.surface-strong
+            : root.quiet
+                ? transparent
+                : ShellTheme.surface;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: root.compact ? 8px : 10px;
+        padding-right: root.compact ? 8px : 10px;
+        spacing: 6px;
+        alignment: center;
+
+        if root.icon-text != "": Rectangle {
+            width: root.compact ? 16px : 18px;
+            height: root.compact ? 16px : 18px;
+            border-radius: ShellTheme.radius-sm * 1px;
+            background: root.active ? ShellTheme.accent : ShellTheme.surface-strong;
+
+            Text {
+                text: root.icon-text;
+                color: ShellTheme.text-primary;
+                font-size: 10px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.label != "": Text {
+            text: root.label;
+            color: root.active ? ShellTheme.text-primary : ShellTheme.text-secondary;
+            font-size: 12px;
+            font-weight: root.active ? 700 : 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component ShellPill inherits Rectangle {
+    in property <string> label;
+    in property <color> tone: ShellTheme.surface-strong;
+    in property <bool> compact: false;
+
+    height: root.compact ? 24px : 26px;
+    min-width: 54px;
+    border-radius: 999px;
+    background: root.tone;
+    border-width: 1px;
+    border-color: ShellTheme.outline;
+
+    Text {
+        text: root.label;
+        color: ShellTheme.text-secondary;
+        font-size: 10px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component DockItem inherits Rectangle {
+    in property <string> label;
+    in property <string> icon-text;
+    in property <image> icon;
+    in property <bool> active: false;
+    in property <int> running-count: 0;
+    callback clicked();
+
+    min-width: 36px;
+    height: 30px;
+    border-radius: ShellTheme.radius-md * 1px;
+    border-width: 1px;
+    border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+    background: touch.has-hover
+        ? ShellTheme.surface-strong
+        : root.active
+            ? ShellTheme.accent-soft
+            : ShellTheme.surface;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 6px;
+        alignment: center;
+
+        Rectangle {
+            width: 16px;
+            height: 16px;
+            border-radius: ShellTheme.radius-sm * 1px;
+            background: root.active ? ShellTheme.accent : ShellTheme.surface-strong;
+
+            if root.icon.width > 0 && root.icon.height > 0: Image {
+                source: root.icon;
+                width: 12px;
+                height: 12px;
+                x: 2px;
+                y: 2px;
+            }
+
+            if root.icon.width == 0 || root.icon.height == 0: Text {
+                text: root.icon-text;
+                color: ShellTheme.text-primary;
+                font-size: 9px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.label != "": Text {
+            text: root.label;
+            color: ShellTheme.text-primary;
+            font-size: 11px;
+            font-weight: 600;
+            overflow: elide;
+        }
+
+        if root.running-count > 0: Rectangle {
+            width: root.running-count > 1 ? 18px : 8px;
+            height: 14px;
+            border-radius: 999px;
+            background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.accent-soft;
+            border-width: 1px;
+            border-color: ShellTheme.accent;
+
+            if root.running-count > 1: Text {
+                text: root.running-count + "";
+                color: ShellTheme.text-primary;
+                font-size: 9px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

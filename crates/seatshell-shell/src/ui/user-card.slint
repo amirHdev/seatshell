@@ -1,46 +1,65 @@
+import { ShellTheme } from "shell-theme.slint";
+import { ShellPill } from "shell-widgets.slint";
+
 export component UserCard inherits Rectangle {
     in property <string> username;
     in property <string> state;
     in property <string> action;
     in property <string> accent: "#4a90e2";
+    in property <bool> selected: false;
 
-    width: 280px;
-    height: 176px;
-    background: #121c27;
-    border-radius: 8px;
+    min-width: 280px;
+    height: 74px;
+    background: root.selected ? ShellTheme.accent-soft : ShellTheme.surface;
+    border-radius: ShellTheme.radius-md * 1px;
     border-width: 1px;
-    border-color: #31475c;
+    border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
+    horizontal-stretch: 1;
 
-    VerticalLayout {
-        padding: 16px;
-        spacing: 8px;
-
-        Text {
-            text: root.username;
-            color: #f2f6fb;
-            font-size: 21px;
-            font-weight: 700;
-        }
-
-        Text {
-            text: root.state;
-            color: #aab6c5;
-            font-size: 14px;
-        }
+    HorizontalLayout {
+        padding: ShellTheme.space-md * 1px;
+        spacing: ShellTheme.space-sm * 1px;
+        alignment: center;
 
         Rectangle {
-            vertical-stretch: 1;
-            background: #0f151e;
-            border-radius: 6px;
-            border-width: 1px;
-            border-color: #263648;
+            width: 30px;
+            height: 30px;
+            background: ShellTheme.accent-soft;
+            border-radius: ShellTheme.radius-md * 1px;
 
             Text {
-                text: root.action;
-                color: #cbd5e1;
-                font-size: 14px;
+                text: "S";
+                color: ShellTheme.text-primary;
+                font-size: 12px;
+                font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.username;
+                color: ShellTheme.text-primary;
+                font-size: 14px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: root.state;
+                color: ShellTheme.text-secondary;
+                font-size: 11px;
+                overflow: elide;
+            }
+
+            ShellPill {
+                label: root.action;
+                tone: ShellTheme.surface-strong;
+                compact: true;
+                min-width: 110px;
             }
         }
     }

@@ -1,15 +1,28 @@
+import { ShellTheme } from "shell-theme.slint";
+
 export component AppRow inherits Rectangle {
     in property <string> name;
-    in property <string> exec;
+    in property <string> detail;
+    in property <string> icon-text;
+    in property <image> icon;
     in property <string> accent: "#4a90e2";
+    in property <bool> selected: false;
+    in property <bool> favorite: false;
+    in property <int> running-count: 0;
+    in property <bool> show-favorite-toggle: false;
 
     callback clicked();
+    callback toggle-favorite();
 
-    height: 54px;
-    background: touch.has-hover ? #172536 : #101a24;
-    border-radius: 6px;
+    height: 48px;
+    border-radius: ShellTheme.radius-md * 1px;
     border-width: 1px;
-    border-color: touch.has-hover ? #4a90e2 : #263648;
+    border-color: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.outline;
+    background: root.selected
+        ? ShellTheme.accent-soft
+        : touch.has-hover
+            ? ShellTheme.surface-strong
+            : ShellTheme.surface;
 
     touch := TouchArea {
         clicked => {
@@ -18,21 +31,29 @@ export component AppRow inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 10px;
+        padding-left: ShellTheme.space-sm * 1px;
+        padding-right: ShellTheme.space-sm * 1px;
+        spacing: ShellTheme.space-sm * 1px;
         alignment: center;
 
         Rectangle {
-            width: 30px;
-            height: 30px;
-            background: #4a90e2;
-            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            background: touch.has-hover ? ShellTheme.accent : ShellTheme.accent-soft;
+            border-radius: ShellTheme.radius-sm * 1px;
 
-            Text {
-                text: ">";
-                color: white;
-                font-size: 16px;
+            if root.icon.width > 0 && root.icon.height > 0: Image {
+                source: root.icon;
+                width: 18px;
+                height: 18px;
+                x: 5px;
+                y: 5px;
+            }
+
+            if root.icon.width == 0 || root.icon.height == 0: Text {
+                text: root.icon-text;
+                color: ShellTheme.text-primary;
+                font-size: 12px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -45,17 +66,74 @@ export component AppRow inherits Rectangle {
 
             Text {
                 text: root.name;
-                color: #edf3fa;
-                font-size: 15px;
+                color: ShellTheme.text-primary;
+                font-size: 13px;
                 font-weight: 700;
                 overflow: elide;
             }
 
             Text {
-                text: root.exec;
-                color: #8fa2b7;
-                font-size: 12px;
+                text: root.detail;
+                color: ShellTheme.text-muted;
+                font-size: 10px;
                 overflow: elide;
+            }
+        }
+
+        if root.running-count > 0: Rectangle {
+            width: root.running-count > 1 ? 26px : 16px;
+            height: 18px;
+            background: root.running-count > 1 ? ShellTheme.accent-soft : transparent;
+            border-radius: 999px;
+            border-width: root.running-count > 1 ? 1px : 0px;
+            border-color: ShellTheme.accent;
+
+            Text {
+                text: root.running-count > 1 ? root.running-count + "" : "•";
+                color: ShellTheme.text-primary;
+                font-size: root.running-count > 1 ? 10px : 14px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            width: 24px;
+            height: 20px;
+            background: transparent;
+
+            Text {
+                text: ">";
+                color: touch.has-hover ? ShellTheme.text-primary : ShellTheme.text-secondary;
+                font-size: 12px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if root.show-favorite-toggle: Rectangle {
+            width: 48px;
+            height: 24px;
+            background: root.favorite ? ShellTheme.accent-soft : ShellTheme.surface-muted;
+            border-radius: ShellTheme.radius-sm * 1px;
+            border-width: 1px;
+            border-color: root.favorite ? ShellTheme.accent : ShellTheme.outline;
+
+            pin-touch := TouchArea {
+                clicked => {
+                    root.toggle-favorite();
+                }
+            }
+
+            Text {
+                text: root.favorite ? "On" : "Pin";
+                color: ShellTheme.text-primary;
+                font-size: 10px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
             }
         }
     }

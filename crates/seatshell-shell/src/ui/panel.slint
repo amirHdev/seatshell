@@ -1,69 +1,183 @@
-import { Button } from "std-widgets.slint";
+import { LauncherApp } from "launcher.slint";
+import { ShellTheme } from "shell-theme.slint";
+import { DockItem, ShellAction, ShellPill } from "shell-widgets.slint";
 
 export component Panel inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <string> clock-text;
     in property <string> status-text: "Ready";
+    in property <string> network-text: "NET";
+    in property <string> power-text: "PWR";
+    in property <string> audio-text: "VOL ?";
+    in property <[LauncherApp]> panel-apps;
+    in property <int> app-count: 0;
+    in property <int> session-count: 0;
+    in property <int> notification-count: 0;
     in property <bool> show-launcher: false;
     in property <bool> show-overview: false;
+    in property <bool> show-notifications: false;
+    in property <bool> show-user-switcher: true;
+    in property <bool> compact: root.width < 1200px;
+    in property <bool> wide: root.width >= 1460px;
     callback toggle-launcher();
     callback toggle-overview();
+    callback toggle-notifications();
+    callback toggle-network();
+    callback volume-down();
+    callback volume-up();
+    callback toggle-mute();
     callback show-desktop();
+    callback launch-app(string);
 
-    background: #0b1118;
+    background: ShellTheme.background-elevated;
     border-width: 1px;
-    border-color: #1d2a36;
+    border-color: ShellTheme.outline;
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
+        padding-left: 10px;
+        padding-right: 10px;
         spacing: 8px;
         alignment: center;
 
-        Button {
-            text: !root.show-launcher && !root.show-overview ? "Desktop *" : "Desktop";
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: center;
+
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                background: ShellTheme.accent-soft;
+                border-radius: ShellTheme.radius-sm * 1px;
+
+                Text {
+                    text: "S";
+                    color: ShellTheme.text-primary;
+                    font-size: 11px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            if !root.compact: Text {
+                text: "SeatShell";
+                color: ShellTheme.text-primary;
+                font-size: 13px;
+                font-weight: 800;
+            }
+        }
+
+        Rectangle {
+            width: 1px;
+            height: 18px;
+            background: ShellTheme.outline;
+        }
+
+        ShellAction {
+            label: root.wide ? "Desktop" : "";
+            icon-text: "D";
+            active: !root.show-launcher && !root.show-overview;
+            compact: true;
             clicked => {
                 root.show-desktop();
             }
         }
 
-        Button {
-            text: root.show-launcher ? "Apps *" : "Apps";
+        ShellAction {
+            label: root.wide ? "Apps" : "";
+            icon-text: "A";
+            active: root.show-launcher;
+            compact: true;
             clicked => {
                 root.toggle-launcher();
             }
         }
 
-        Button {
-            text: root.show-overview ? "Sessions *" : "Sessions";
+        if root.show-user-switcher: ShellAction {
+            label: root.wide ? "Sessions" : "";
+            icon-text: "U";
+            active: root.show-overview;
+            compact: true;
             clicked => {
                 root.toggle-overview();
             }
         }
 
-        Rectangle {
+        HorizontalLayout {
             horizontal-stretch: 1;
-            background: transparent;
+            spacing: 6px;
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+
+            for app in root.panel-apps: DockItem {
+                label: root.wide ? app.name : "";
+                icon-text: app.icon_text;
+                icon: app.icon;
+                active: app.running_count > 0;
+                running-count: app.running_count;
+                clicked => {
+                    root.launch-app(app.id);
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
         }
 
-        Text {
-            text: root.status-text;
-            color: #c9d3df;
-            font-size: 13px;
-            horizontal-alignment: right;
+        ShellAction {
+            label: root.wide ? root.network-text : "";
+            icon-text: "W";
+            compact: true;
+            clicked => {
+                root.toggle-network();
+            }
         }
+        HorizontalLayout {
+            spacing: 4px;
 
-        Rectangle {
-            width: 1px;
-            height: 24px;
-            background: #263443;
-        }
+            ShellAction {
+                label: "";
+                icon-text: "-";
+                compact: true;
+                clicked => {
+                    root.volume-down();
+                }
+            }
 
-        Text {
-            text: root.clock-text;
-            color: #f2f6fb;
-            font-size: 14px;
-            font-weight: 700;
+            ShellAction {
+                label: root.wide ? root.audio-text : "";
+                icon-text: "V";
+                compact: true;
+                clicked => {
+                    root.toggle-mute();
+                }
+            }
+
+            ShellAction {
+                label: "";
+                icon-text: "+";
+                compact: true;
+                clicked => {
+                    root.volume-up();
+                }
+            }
         }
+        if !root.compact: ShellPill { label: root.power-text; compact: true; }
+        ShellAction {
+            label: root.wide && root.notification-count > 0 ? root.notification-count + "" : "";
+            icon-text: "N";
+            active: root.show-notifications;
+            compact: true;
+            clicked => {
+                root.toggle-notifications();
+            }
+        }
+        if root.show-user-switcher: ShellPill { label: root.session-count + "S"; compact: true; }
+        ShellPill { label: root.clock-text; tone: ShellTheme.accent-soft; compact: true; }
     }
 }

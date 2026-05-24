@@ -3,6 +3,7 @@ pub const ADMIN_OBJECT_PATH: &str = "/org/seatshell/Admin";
 pub const USER_AGENT_BUS_NAME_PREFIX: &str = "org.seatshell.UserAgent";
 pub const USER_AGENT_OBJECT_PATH: &str = "/org/seatshell/UserAgent";
 pub const SHELL_BUS_NAME: &str = "org.seatshell.Shell";
+pub const SHELL_OBJECT_PATH: &str = "/org/seatshell/Shell";
 pub const SETTINGS_BUS_NAME: &str = "org.seatshell.Settings";
 
 pub mod admin {
@@ -27,4 +28,14 @@ pub mod user_agent {
     pub const SHOW_ADMIN_NOTICE: &str = "ShowAdminNotice";
     pub const START_PREVIEW_STREAM: &str = "StartPreviewStream";
     pub const STOP_PREVIEW_STREAM: &str = "StopPreviewStream";
+}
+
+pub mod shell {
+    pub const INTERFACE: &str = "org.seatshell.Shell";
+    pub const SHOW_DESKTOP: &str = "ShowDesktop";
+    pub const SHOW_LAUNCHER: &str = "ShowLauncher";
+    pub const SHOW_NOTIFICATIONS: &str = "ShowNotifications";
+    pub const SHOW_OVERVIEW: &str = "ShowOverview";
+    pub const POST_NOTIFICATION: &str = "PostNotification";
+    pub const CLEAR_NOTIFICATIONS: &str = "ClearNotifications";
 }

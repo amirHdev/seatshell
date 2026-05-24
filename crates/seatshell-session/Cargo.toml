@@ -7,6 +7,10 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+libc.workspace = true
+seatshell-protocol.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tracing-appender.workspace = true
 tracing-subscriber.workspace = true
+zbus.workspace = true

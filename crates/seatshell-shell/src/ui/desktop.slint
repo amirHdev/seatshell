@@ -1,130 +1,384 @@
-import { Button, ScrollView } from "std-widgets.slint";
 import { LauncherApp } from "launcher.slint";
 import { AppRow } from "app-row.slint";
+import { ShellTheme } from "shell-theme.slint";
+import { ShellAction, ShellPill } from "shell-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 
 export component Desktop inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <string> clock-text;
-    in property <string> status-text: "SeatShell ready";
+    in property <string> status-text: "Ready";
     in property <[LauncherApp]> apps;
+    in property <[LauncherApp]> featured-apps;
+    in property <[LauncherApp]> recent-apps;
+    in property <string> user-name;
+    in property <string> theme-name;
+    in property <string> wallpaper-path;
+    in property <int> app-count;
+    in property <int> session-count;
+    in property <bool> overview-enabled: true;
+    in property <bool> wide: root.width >= 1280px;
+    in property <bool> medium: root.width >= 980px && root.width < 1280px;
+    in property <bool> compact: root.width < 980px;
 
     callback show-launcher();
+    callback show-command-surface();
     callback show-overview();
     callback launch-app(string);
 
-    background: #09111a;
+    background: ShellTheme.background;
 
     VerticalLayout {
-        padding: 24px;
-        spacing: 18px;
-
-        HorizontalLayout {
-            spacing: 16px;
-            alignment: center;
-
-            VerticalLayout {
-                spacing: 4px;
-                horizontal-stretch: 1;
-
-                Text {
-                    text: "SeatShell";
-                    color: #f4f7fb;
-                    font-size: 34px;
-                    font-weight: 800;
-                }
-
-                Text {
-                    text: root.status-text;
-                    color: #9fb0c2;
-                    font-size: 14px;
-                }
-            }
-
-            Rectangle {
-                width: 168px;
-                height: 52px;
-                background: #101a24;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #2a3a4d;
-
-                Text {
-                    text: root.clock-text;
-                    color: #f2f6fb;
-                    font-size: 19px;
-                    font-weight: 700;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
-        }
+        padding: 10px;
+        spacing: 10px;
 
         Rectangle {
-            height: 1px;
-            background: #243140;
-        }
+            height: root.compact ? 88px : 64px;
+            background: ShellTheme.background-elevated;
+            border-radius: ShellTheme.radius-lg * 1px;
+            border-width: 1px;
+            border-color: ShellTheme.outline;
 
-        HorizontalLayout {
-            vertical-stretch: 1;
-            spacing: 18px;
+            VerticalLayout {
+                padding: 10px;
+                spacing: 8px;
 
-            Rectangle {
-                width: min(380px, max(260px, root.width * 0.28));
-                background: #101a24;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #2b3d50;
-
-                VerticalLayout {
-                    padding: 16px;
+                HorizontalLayout {
                     spacing: 12px;
+                    alignment: center;
 
-                    Text {
-                        text: "System";
-                        color: #f2f6fb;
-                        font-size: 22px;
-                        font-weight: 700;
-                    }
+                    VerticalLayout {
+                        spacing: 2px;
+                        horizontal-stretch: 1;
 
-                    Rectangle {
-                        height: 72px;
-                        background: #0b141d;
-                        border-radius: 6px;
-                        border-width: 1px;
-                        border-color: #243447;
+                        Text {
+                            text: "SeatShell";
+                            color: ShellTheme.text-primary;
+                            font-size: root.compact ? 18px : 16px;
+                            font-weight: 800;
+                        }
 
-                        VerticalLayout {
-                            padding: 12px;
-                            spacing: 4px;
-
-                            Text {
-                                text: "SingleSeat";
-                                color: #dce6f1;
-                                font-size: 15px;
-                                font-weight: 700;
-                            }
-
-                            Text {
-                                text: "Session overview and local application launch are ready.";
-                                color: #9fb0c2;
-                                font-size: 13px;
-                                wrap: word-wrap;
-                            }
+                        Text {
+                            text: root.status-text;
+                            color: ShellTheme.text-secondary;
+                            font-size: 11px;
                         }
                     }
 
-                    Button {
-                        text: "Applications";
+                    if !root.compact: ShellPill { label: root.app-count + " apps"; compact: true; }
+                    if root.overview-enabled: ShellPill { label: root.session-count + " sessions"; compact: true; }
+
+                    ShellPill {
+                        label: root.clock-text;
+                        tone: ShellTheme.accent-soft;
+                        compact: true;
+                    }
+                }
+
+                if root.compact: HorizontalLayout {
+                    spacing: 8px;
+
+                    ShellAction {
+                        label: "Apps";
+                        icon-text: "A";
+                        compact: true;
                         clicked => {
                             root.show-launcher();
                         }
                     }
 
-                    Button {
-                        text: "Sessions";
+                    ShellAction {
+                        label: "Tools";
+                        icon-text: "C";
+                        compact: true;
+                        clicked => {
+                            root.show-command-surface();
+                        }
+                    }
+
+                    if root.overview-enabled: ShellAction {
+                        label: "Sessions";
+                        icon-text: "U";
+                        compact: true;
                         clicked => {
                             root.show-overview();
                         }
+                    }
+
+                    ShellPill { label: root.session-count + " sessions"; compact: true; }
+                }
+            }
+        }
+
+        if root.compact: ScrollView {
+            vertical-stretch: 1;
+            viewport-width: self.width;
+
+            VerticalLayout {
+                spacing: 10px;
+
+                Rectangle {
+                    background: ShellTheme.surface;
+                    border-radius: ShellTheme.radius-lg * 1px;
+                    border-width: 1px;
+                    border-color: ShellTheme.outline;
+
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 8px;
+
+                        Text {
+                            text: "Workspace tools";
+                            color: ShellTheme.text-primary;
+                            font-size: 13px;
+                            font-weight: 800;
+                        }
+
+                        Text {
+                            text: "A small control rail for launch, tools, and sessions.";
+                            color: ShellTheme.text-secondary;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            ShellPill { label: root.app-count + " apps"; compact: true; }
+                            if root.overview-enabled: ShellPill { label: root.session-count + " sessions"; compact: true; }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            ShellAction {
+                                label: "Open Launcher";
+                                icon-text: "A";
+                                compact: true;
+                                clicked => {
+                                    root.show-launcher();
+                                }
+                            }
+
+                            ShellAction {
+                                label: "Tools";
+                                icon-text: "C";
+                                compact: true;
+                                clicked => {
+                                    root.show-command-surface();
+                                }
+                            }
+
+                            if root.overview-enabled: ShellAction {
+                                label: "Sessions";
+                                icon-text: "U";
+                                compact: true;
+                                clicked => {
+                                    root.show-overview();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    background: ShellTheme.background-elevated;
+                    border-radius: ShellTheme.radius-lg * 1px;
+                    border-width: 1px;
+                    border-color: ShellTheme.outline;
+
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 10px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            Text {
+                                text: "Launchpad";
+                                color: ShellTheme.text-primary;
+                                font-size: 14px;
+                                font-weight: 800;
+                            }
+
+                            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                            ShellAction {
+                                label: "All Apps";
+                                icon-text: ">";
+                                compact: true;
+                                clicked => {
+                                    root.show-launcher();
+                                }
+                            }
+                        }
+
+                        if root.featured-apps.length > 0: Rectangle {
+                            background: transparent;
+
+                            VerticalLayout {
+                                spacing: 8px;
+
+                                Text {
+                                    text: "Pinned";
+                                    color: ShellTheme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                for app in root.featured-apps: AppRow {
+                                    name: app.name;
+                                    detail: app.detail;
+                                    icon-text: app.icon_text;
+                                    icon: app.icon;
+                                    favorite: app.favorite;
+                                    running-count: app.running_count;
+                                    accent: root.accent;
+                                    clicked => {
+                                        root.launch-app(app.id);
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.recent-apps.length > 0: Rectangle {
+                            background: transparent;
+
+                            VerticalLayout {
+                                spacing: 8px;
+
+                                Text {
+                                    text: "Recent";
+                                    color: ShellTheme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                for app in root.recent-apps: AppRow {
+                                    name: app.name;
+                                    detail: app.detail;
+                                    icon-text: app.icon_text;
+                                    icon: app.icon;
+                                    favorite: app.favorite;
+                                    running-count: app.running_count;
+                                    accent: root.accent;
+                                    clicked => {
+                                        root.launch-app(app.id);
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: transparent;
+
+                            VerticalLayout {
+                                spacing: 8px;
+
+                                Text {
+                                    text: "Browse";
+                                    color: ShellTheme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                for app in root.apps: AppRow {
+                                    name: app.name;
+                                    detail: app.detail;
+                                    icon-text: app.icon_text;
+                                    icon: app.icon;
+                                    favorite: app.favorite;
+                                    running-count: app.running_count;
+                                    accent: root.accent;
+                                    clicked => {
+                                        root.launch-app(app.id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if !root.compact: HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 10px;
+
+            Rectangle {
+                width: root.wide ? 228px : 206px;
+                background: ShellTheme.surface;
+                border-radius: ShellTheme.radius-lg * 1px;
+                border-width: 1px;
+                border-color: ShellTheme.outline;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+
+                    Text {
+                        text: "Workspace";
+                        color: ShellTheme.text-primary;
+                        font-size: 14px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        text: "A small workspace rail for the things you reach for most.";
+                        color: ShellTheme.text-secondary;
+                        font-size: 11px;
+                        wrap: word-wrap;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        ShellPill { label: root.app-count + " apps"; compact: true; }
+                        if root.overview-enabled: ShellPill { label: root.session-count + " sessions"; compact: true; }
+                    }
+
+                    Text {
+                        text: "Actions";
+                        color: ShellTheme.text-secondary;
+                        font-size: 12px;
+                        font-weight: 700;
+                    }
+
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        ShellAction {
+                            label: "Open";
+                            icon-text: "A";
+                            compact: true;
+                            clicked => {
+                                root.show-launcher();
+                            }
+                        }
+
+                        ShellAction {
+                            label: "Tools";
+                            icon-text: "C";
+                            compact: true;
+                            clicked => {
+                                root.show-command-surface();
+                            }
+                        }
+
+                        if root.overview-enabled: ShellAction {
+                            label: "Sessions";
+                            icon-text: "U";
+                            compact: true;
+                            clicked => {
+                                root.show-overview();
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: root.status-text;
+                        color: ShellTheme.text-muted;
+                        font-size: 11px;
+                        wrap: word-wrap;
                     }
 
                     Rectangle {
@@ -135,49 +389,256 @@ export component Desktop inherits Rectangle {
             }
 
             Rectangle {
-                background: #0e1721;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: #29394c;
                 horizontal-stretch: 1;
+                background: ShellTheme.background-elevated;
+                border-radius: ShellTheme.radius-lg * 1px;
+                border-width: 1px;
+                border-color: ShellTheme.outline;
 
                 VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
+                    padding: 14px;
+                    spacing: 10px;
 
                     HorizontalLayout {
-                        spacing: 10px;
+                        spacing: 8px;
                         alignment: center;
 
-                        Text {
-                            text: "Applications";
-                            color: #f2f6fb;
-                            font-size: 22px;
-                            font-weight: 700;
+                        VerticalLayout {
+                            spacing: 2px;
                             horizontal-stretch: 1;
+
+                            Text {
+                                text: "Launchpad";
+                                color: ShellTheme.text-primary;
+                                font-size: 14px;
+                                font-weight: 800;
+                            }
+
+                            Text {
+                                text: "Pinned tools, recents, and the full app list in one place.";
+                                color: ShellTheme.text-secondary;
+                                font-size: 11px;
+                            }
                         }
 
-                        Button {
-                            text: "Open Launcher";
+                        ShellAction {
+                            label: "All Apps";
+                            icon-text: ">";
+                            compact: true;
                             clicked => {
                                 root.show-launcher();
                             }
                         }
                     }
 
-                    ScrollView {
+                    if root.wide: HorizontalLayout {
+                        vertical-stretch: 1;
+                        spacing: 12px;
+
+                        Rectangle {
+                            width: 324px;
+                            background: transparent;
+
+                            ScrollView {
+                                width: parent.width;
+                                height: parent.height;
+                                viewport-width: self.width;
+
+                                VerticalLayout {
+                                    spacing: 12px;
+
+                                    if root.featured-apps.length > 0: Rectangle {
+                                        background: transparent;
+
+                                        VerticalLayout {
+                                            spacing: 8px;
+
+                                            Text {
+                                                text: "Pinned";
+                                                color: ShellTheme.text-secondary;
+                                                font-size: 12px;
+                                                font-weight: 700;
+                                            }
+
+                                            for app in root.featured-apps: AppRow {
+                                                name: app.name;
+                                                detail: app.detail;
+                                                icon-text: app.icon_text;
+                                                icon: app.icon;
+                                                favorite: app.favorite;
+                                                running-count: app.running_count;
+                                                accent: root.accent;
+                                                clicked => {
+                                                    root.launch-app(app.id);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if root.recent-apps.length > 0: Rectangle {
+                                        background: transparent;
+
+                                        VerticalLayout {
+                                            spacing: 8px;
+
+                                            Text {
+                                                text: "Recent";
+                                                color: ShellTheme.text-secondary;
+                                                font-size: 12px;
+                                                font-weight: 700;
+                                            }
+
+                                            for app in root.recent-apps: AppRow {
+                                                name: app.name;
+                                                detail: app.detail;
+                                                icon-text: app.icon_text;
+                                                icon: app.icon;
+                                                favorite: app.favorite;
+                                                running-count: app.running_count;
+                                                accent: root.accent;
+                                                clicked => {
+                                                    root.launch-app(app.id);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 1px;
+                            vertical-stretch: 1;
+                            background: ShellTheme.outline;
+                        }
+
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            background: transparent;
+
+                            VerticalLayout {
+                                spacing: 6px;
+
+                                Text {
+                                    text: "Browse";
+                                    color: ShellTheme.text-secondary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                ScrollView {
+                                    vertical-stretch: 1;
+                                    viewport-width: self.width;
+
+                                    VerticalLayout {
+                                        spacing: 6px;
+
+                                        for app in root.apps: AppRow {
+                                            name: app.name;
+                                            detail: app.detail;
+                                            icon-text: app.icon_text;
+                                            icon: app.icon;
+                                            favorite: app.favorite;
+                                            running-count: app.running_count;
+                                            accent: root.accent;
+                                            clicked => {
+                                                root.launch-app(app.id);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if root.medium: ScrollView {
                         vertical-stretch: 1;
                         viewport-width: self.width;
 
                         VerticalLayout {
-                            spacing: 8px;
+                            spacing: 12px;
 
-                            for app in root.apps: AppRow {
-                                name: app.name;
-                                exec: app.exec;
-                                accent: root.accent;
-                                clicked => {
-                                    root.launch-app(app.id);
+                            if root.featured-apps.length > 0: Rectangle {
+                                background: transparent;
+
+                                VerticalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Pinned";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                    }
+
+                                    for app in root.featured-apps: AppRow {
+                                        name: app.name;
+                                        detail: app.detail;
+                                        icon-text: app.icon_text;
+                                        icon: app.icon;
+                                        favorite: app.favorite;
+                                        running-count: app.running_count;
+                                        accent: root.accent;
+                                        clicked => {
+                                            root.launch-app(app.id);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if root.recent-apps.length > 0: Rectangle {
+                                background: transparent;
+
+                                VerticalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Recent";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                    }
+
+                                    for app in root.recent-apps: AppRow {
+                                        name: app.name;
+                                        detail: app.detail;
+                                        icon-text: app.icon_text;
+                                        icon: app.icon;
+                                        favorite: app.favorite;
+                                        running-count: app.running_count;
+                                        accent: root.accent;
+                                        clicked => {
+                                            root.launch-app(app.id);
+                                        }
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                background: transparent;
+
+                                VerticalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Browse";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                    }
+
+                                    for app in root.apps: AppRow {
+                                        name: app.name;
+                                        detail: app.detail;
+                                        icon-text: app.icon_text;
+                                        icon: app.icon;
+                                        favorite: app.favorite;
+                                        running-count: app.running_count;
+                                        accent: root.accent;
+                                        clicked => {
+                                            root.launch-app(app.id);
+                                        }
+                                    }
                                 }
                             }
                         }

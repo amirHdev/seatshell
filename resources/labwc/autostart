@@ -1,3 +1,11 @@
+#!/bin/sh
+
+# When SeatShell is launched through seatshell-session, process lifetime is
+# already managed there. Avoid starting duplicate daemons or shell windows.
+if [ "${SEATSHELL_SESSION_MANAGED:-0}" = "1" ]; then
+    exit 0
+fi
+
 seatshell-admin-daemon &
 seatshell-user-agent &
 seatshell-shell &

@@ -1,48 +1,133 @@
 import { Panel } from "panel.slint";
 import { Desktop } from "desktop.slint";
+import { CommandSurface } from "command-surface.slint";
 import { Launcher, LauncherApp } from "launcher.slint";
+import { NotificationCenter, NotificationEntry } from "notification-center.slint";
 import { Overview, UserSession } from "overview.slint";
+import { ShellTheme } from "shell-theme.slint";
 
 export component AppWindow inherits Window {
-    in property <int> panel-height: 42;
+    in property <int> panel-height: 34;
     in property <string> accent: "#4a90e2";
     in property <[LauncherApp]> launcher-apps;
+    in property <[LauncherApp]> featured-apps;
+    in property <[LauncherApp]> recent-apps;
+    in property <[LauncherApp]> panel-apps;
+    in property <[NotificationEntry]> notifications;
     in property <[UserSession]> user-sessions;
     in property <string> clock-text;
     in property <string> status-text: "SeatShell ready";
+    in property <string> network-text: "NET";
+    in property <string> power-text: "PWR";
+    in property <string> audio-text: "VOL ?";
+    in property <string> user-name: "unknown";
+    in property <string> theme-name: "dark";
+    in property <string> wallpaper-path;
     in property <string> launcher-query;
     in property <int> launcher-count;
+    in property <int> app-count: 0;
+    in property <int> session-count: 0;
+    in property <int> notification-count: 0;
     in property <bool> windowed: false;
+    in property <bool> panel-on-top: false;
+    in property <bool> show-user-switcher: true;
     in-out property <bool> show-launcher: false;
     in-out property <bool> show-overview: false;
+    in-out property <bool> show-command-surface: false;
+    in-out property <bool> show-notifications: false;
     in property <bool> overview-enabled: true;
 
     callback toggle-launcher();
     callback toggle-overview();
     callback show-desktop();
     callback launch-app(string);
+    callback toggle-command-surface();
+    callback toggle-notifications();
+    callback toggle-network();
+    callback volume-down();
+    callback volume-up();
+    callback toggle-mute();
+    callback clear-notifications();
+    callback dismiss-notification(int);
     callback launcher-search-changed(string);
     callback launcher-accept-search();
+    callback move-launcher-selection(int);
+    callback toggle-favorite-app(string);
+    callback move-overview-selection(int);
+    callback activate-current-session();
 
     title: "SeatShell";
-    width: 1366px;
-    height: 768px;
+    width: 1180px;
+    height: 680px;
     no-frame: !root.windowed;
     full-screen: !root.windowed;
-    background: #09111a;
+    background: ShellTheme.background;
 
     VerticalLayout {
         padding: 0px;
         spacing: 0px;
 
+        if root.panel-on-top: Panel {
+            height: root.panel-height * 1px;
+            accent: root.accent;
+            clock-text: root.clock-text;
+            status-text: root.status-text;
+            network-text: root.network-text;
+            power-text: root.power-text;
+            audio-text: root.audio-text;
+            panel-apps: root.panel-apps;
+            app-count: root.app-count;
+            session-count: root.session-count;
+            notification-count: root.notification-count;
+            show-launcher: root.show-launcher;
+            show-overview: root.show-overview;
+            show-notifications: root.show-notifications;
+            show-user-switcher: root.show-user-switcher;
+            show-desktop => {
+                root.show-desktop();
+            }
+            toggle-launcher => {
+                root.toggle-launcher();
+            }
+            toggle-overview => {
+                if root.overview-enabled {
+                    root.toggle-overview();
+                }
+            }
+            toggle-notifications => {
+                root.toggle-notifications();
+            }
+            toggle-network => {
+                root.toggle-network();
+            }
+            volume-down => {
+                root.volume-down();
+            }
+            volume-up => {
+                root.volume-up();
+            }
+            toggle-mute => {
+                root.toggle-mute();
+            }
+            launch-app(id) => {
+                root.launch-app(id);
+            }
+        }
+
         Rectangle {
-            background: #09111a;
+            background: ShellTheme.background;
             vertical-stretch: 1;
 
             if show-overview: Overview {
                 accent: root.accent;
                 sessions: root.user-sessions;
                 status-text: root.status-text;
+                move-selection(step) => {
+                    root.move-overview-selection(step);
+                }
+                activate-current-session => {
+                    root.activate-current-session();
+                }
                 close => {
                     root.show-desktop();
                 }
@@ -51,6 +136,8 @@ export component AppWindow inherits Window {
             if show-launcher: Launcher {
                 accent: root.accent;
                 apps: root.launcher-apps;
+                featured-apps: root.featured-apps;
+                recent-apps: root.recent-apps;
                 query: root.launcher-query;
                 app-count: root.launcher-count;
                 launch-app(command) => {
@@ -62,6 +149,12 @@ export component AppWindow inherits Window {
                 accept-search => {
                     root.launcher-accept-search();
                 }
+                move-selection(step) => {
+                    root.move-launcher-selection(step);
+                }
+                toggle-favorite(id) => {
+                    root.toggle-favorite-app(id);
+                }
                 close => {
                     root.show-desktop();
                 }
@@ -72,8 +165,19 @@ export component AppWindow inherits Window {
                 clock-text: root.clock-text;
                 status-text: root.status-text;
                 apps: root.launcher-apps;
+                featured-apps: root.featured-apps;
+                recent-apps: root.recent-apps;
+                user-name: root.user-name;
+                theme-name: root.theme-name;
+                wallpaper-path: root.wallpaper-path;
+                app-count: root.app-count;
+                session-count: root.session-count;
+                overview-enabled: root.overview-enabled;
                 show-launcher => {
                     root.toggle-launcher();
+                }
+                show-command-surface => {
+                    root.toggle-command-surface();
                 }
                 show-overview => {
                     if root.overview-enabled {
@@ -84,15 +188,60 @@ export component AppWindow inherits Window {
                     root.launch-app(id);
                 }
             }
+
+            if !show-overview && !show-launcher && show-command-surface: CommandSurface {
+                accent: root.accent;
+                overview-enabled: root.overview-enabled;
+                featured-apps: root.featured-apps;
+                recent-apps: root.recent-apps;
+                close => {
+                    root.toggle-command-surface();
+                }
+                show-launcher => {
+                    root.toggle-command-surface();
+                    root.toggle-launcher();
+                }
+                show-overview => {
+                    root.toggle-command-surface();
+                    if root.overview-enabled {
+                        root.toggle-overview();
+                    }
+                }
+                launch-app(id) => {
+                    root.launch-app(id);
+                }
+            }
+
+            if show-notifications: NotificationCenter {
+                notifications: root.notifications;
+                clear-all => {
+                    root.clear-notifications();
+                }
+                dismiss-notification(id) => {
+                    root.dismiss-notification(id);
+                }
+                close => {
+                    root.toggle-notifications();
+                }
+            }
         }
 
-        Panel {
+        if !root.panel-on-top: Panel {
             height: root.panel-height * 1px;
             accent: root.accent;
             clock-text: root.clock-text;
             status-text: root.status-text;
+            network-text: root.network-text;
+            power-text: root.power-text;
+            audio-text: root.audio-text;
+            panel-apps: root.panel-apps;
+            app-count: root.app-count;
+            session-count: root.session-count;
+            notification-count: root.notification-count;
             show-launcher: root.show-launcher;
             show-overview: root.show-overview;
+            show-notifications: root.show-notifications;
+            show-user-switcher: root.show-user-switcher;
             show-desktop => {
                 root.show-desktop();
             }
@@ -103,6 +252,24 @@ export component AppWindow inherits Window {
                 if root.overview-enabled {
                     root.toggle-overview();
                 }
+            }
+            toggle-notifications => {
+                root.toggle-notifications();
+            }
+            toggle-network => {
+                root.toggle-network();
+            }
+            volume-down => {
+                root.volume-down();
+            }
+            volume-up => {
+                root.volume-up();
+            }
+            toggle-mute => {
+                root.toggle-mute();
+            }
+            launch-app(id) => {
+                root.launch-app(id);
             }
         }
     }
