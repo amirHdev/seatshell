@@ -20,6 +20,19 @@ PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
 
 `seatshell-shell` uses a Slint build script, so macOS checks and tests link a host build binary. If Cargo reports that the Xcode license has not been accepted, run `sudo xcodebuild -license` in Terminal before running full workspace checks.
 
+For a macOS-first UI pass, use the windowed shell before moving to Linux-specific session validation:
+
+```sh
+cargo run -p seatshell-shell -- --windowed
+```
+
+Use that run to verify:
+
+- the desktop, panel, launcher, overview, command surface, and notifications all render cleanly
+- resizing the window does not produce clipped text, broken spacing, or collapsed action rows
+- launcher search, app selection, pinned-app toggles, and overview keyboard movement still work
+- empty states are readable when no apps or sessions are available
+
 The local release gate is:
 
 ```sh

@@ -15,7 +15,7 @@ export component NotificationCenter inherits Rectangle {
     callback dismiss-notification(int);
     callback close();
 
-    background: #06101ae6;
+    background: ShellTheme.background-veil;
 
     Rectangle {
         x: max(12px, root.width - min(360px, root.width - 24px) - 12px);
@@ -23,7 +23,7 @@ export component NotificationCenter inherits Rectangle {
         width: min(360px, root.width - 24px);
         height: root.height - 24px;
         background: ShellTheme.background-elevated;
-        border-radius: ShellTheme.radius-lg * 1px;
+        border-radius: ShellTheme.radius-xl * 1px;
         border-width: 1px;
         border-color: ShellTheme.outline;
 
@@ -47,7 +47,7 @@ export component NotificationCenter inherits Rectangle {
                     }
 
                     Text {
-                        text: "Activity, alerts, and quick status.";
+                        text: "A calmer log of movement, warnings, and system replies.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
@@ -91,19 +91,19 @@ export component NotificationCenter inherits Rectangle {
 
                 VerticalLayout {
                     padding: 14px;
-                    spacing: 6px;
+                    spacing: 8px;
                     alignment: center;
 
                     Text {
                         text: "No notifications";
                         color: ShellTheme.text-primary;
-                        font-size: 14px;
+                        font-size: 15px;
                         font-weight: 700;
                         horizontal-alignment: center;
                     }
 
                     Text {
-                        text: "Apps can post alerts through the SeatShell notification service.";
+                        text: "When apps or shell services speak up, they land here in a cleaner visual queue.";
                         color: ShellTheme.text-secondary;
                         font-size: 11px;
                         wrap: word-wrap;
@@ -131,6 +131,15 @@ export component NotificationCenter inherits Rectangle {
                             padding: 12px;
                             spacing: 8px;
 
+                            Rectangle {
+                                height: 2px;
+                                background: notification.urgency == "critical"
+                                    ? ShellTheme.accent
+                                    : notification.urgency == "normal"
+                                        ? ShellTheme.surface-glow
+                                        : ShellTheme.surface-muted;
+                            }
+
                             HorizontalLayout {
                                 spacing: 8px;
                                 alignment: center;
@@ -146,6 +155,9 @@ export component NotificationCenter inherits Rectangle {
 
                                 ShellPill {
                                     label: notification.urgency;
+                                    tone: notification.urgency == "critical"
+                                        ? ShellTheme.surface-accent
+                                        : ShellTheme.surface-muted;
                                     compact: true;
                                 }
 

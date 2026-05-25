@@ -9,9 +9,9 @@ export component UserCard inherits Rectangle {
     in property <bool> selected: false;
 
     min-width: 280px;
-    height: 74px;
-    background: root.selected ? ShellTheme.accent-soft : ShellTheme.surface;
-    border-radius: ShellTheme.radius-md * 1px;
+    height: 96px;
+    background: root.selected ? ShellTheme.surface-accent : ShellTheme.surface;
+    border-radius: ShellTheme.radius-lg * 1px;
     border-width: 1px;
     border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
     horizontal-stretch: 1;
@@ -22,15 +22,17 @@ export component UserCard inherits Rectangle {
         alignment: center;
 
         Rectangle {
-            width: 30px;
-            height: 30px;
-            background: ShellTheme.accent-soft;
-            border-radius: ShellTheme.radius-md * 1px;
+            width: 44px;
+            height: 44px;
+            background: root.selected ? ShellTheme.accent : ShellTheme.surface-muted;
+            border-radius: 999px;
+            border-width: 1px;
+            border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
 
             Text {
-                text: "S";
-                color: ShellTheme.text-primary;
-                font-size: 12px;
+                text: "U";
+                color: root.selected ? #1a120d : ShellTheme.text-primary;
+                font-size: 14px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -44,14 +46,14 @@ export component UserCard inherits Rectangle {
             Text {
                 text: root.username;
                 color: ShellTheme.text-primary;
-                font-size: 14px;
-                font-weight: 700;
+                font-size: 15px;
+                font-weight: 800;
             }
 
             Text {
                 text: root.state;
                 color: ShellTheme.text-secondary;
-                font-size: 11px;
+                font-size: 12px;
                 overflow: elide;
             }
 

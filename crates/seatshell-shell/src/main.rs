@@ -10,6 +10,8 @@ use slint::{Image, ModelRc, Timer, TimerMode, VecModel};
 use std::{
     cell::RefCell,
     collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
     process::Stdio,
     rc::Rc,
     sync::{
@@ -46,6 +48,7 @@ fn main() -> Result<()> {
     let featured_apps = featured_or_favorite_apps(&apps, &favorite_ids, 6);
     let recent_ids = load_recent_app_ids();
     let recent_app_entries = recent_apps(&apps, &recent_ids, 6);
+    let recent_files = recent_files(3);
     let notifications = Arc::new(NotificationStore::default());
     notifications.push(Notification {
         title: "SeatShell ready".into(),
@@ -73,8 +76,15 @@ fn main() -> Result<()> {
         None,
         &running_counts.borrow(),
     ));
+    ui.set_active_apps(launcher_model(
+        &active_apps(&apps, &running_counts.borrow(), 5),
+        &favorite_ids,
+        None,
+        &running_counts.borrow(),
+    ));
+    ui.set_recent_files(recent_file_model(&recent_files));
     ui.set_panel_apps(launcher_model(
-        &taskbar_apps(&apps, &favorite_ids, &running_counts.borrow(), 8),
+        &taskbar_apps(&apps, &favorite_ids, &running_counts.borrow(), 5),
         &favorite_ids,
         None,
         &running_counts.borrow(),
@@ -231,6 +241,20 @@ fn main() -> Result<()> {
         let notifications = Arc::clone(&notifications);
         ui.on_dismiss_notification(move |id| {
             notifications.dismiss(id as u32);
+        });
+    }
+
+    {
+        let notifications = Arc::clone(&notifications);
+        ui.on_open_file(move |path| {
+            if let Err(error) = open_path(path.as_str()) {
+                tracing::warn!(%error, path = %path, "failed to open file");
+                notifications.push(Notification {
+                    title: "Open file failed".into(),
+                    body: "Could not open the selected file.".into(),
+                    urgency: NotificationUrgency::Critical,
+                });
+            }
         });
     }
 
@@ -887,6 +911,18 @@ fn notification_model(notifications: &[StoredNotification]) -> ModelRc<Notificat
     ))
 }
 
+fn recent_file_model(files: &[RecentFileEntry]) -> ModelRc<DesktopFile> {
+    ModelRc::new(VecModel::from(
+        files.iter()
+            .map(|file| DesktopFile {
+                path: file.path.clone().into(),
+                name: file.name.clone().into(),
+                detail: file.detail.clone().into(),
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
 fn refresh_app_models(
     ui: &AppWindow,
     all_apps: &[apps::AppEntry],
@@ -914,8 +950,14 @@ fn refresh_app_models(
         None,
         running_counts,
     ));
+    ui.set_active_apps(launcher_model(
+        &active_apps(all_apps, running_counts, 5),
+        favorite_ids,
+        None,
+        running_counts,
+    ));
     ui.set_panel_apps(launcher_model(
-        &taskbar_apps(all_apps, favorite_ids, running_counts, 8),
+        &taskbar_apps(all_apps, favorite_ids, running_counts, 5),
         favorite_ids,
         None,
         running_counts,
@@ -987,6 +1029,24 @@ fn launch_app(app: &apps::AppEntry) {
     {
         tracing::warn!(program, error = %err, "failed to launch app");
     }
+}
+
+fn open_path(path: &str) -> Result<()> {
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+
+    std::process::Command::new(opener)
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .with_context(|| format!("failed to spawn {opener} for {path}"))?;
+
+    Ok(())
 }
 
 fn clock_text() -> String {
@@ -1396,6 +1456,98 @@ fn current_username() -> String {
     std::env::var("USER").unwrap_or_else(|_| "unknown".into())
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RecentFileEntry {
+    path: String,
+    name: String,
+    detail: String,
+}
+
+fn recent_files(limit: usize) -> Vec<RecentFileEntry> {
+    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else {
+        return Vec::new();
+    };
+
+    let roots = ["Desktop", "Documents", "Downloads"]
+        .iter()
+        .map(|dir| home.join(dir))
+        .collect::<Vec<_>>();
+
+    let mut entries = roots
+        .iter()
+        .flat_map(|root| files_in_dir(root))
+        .collect::<Vec<_>>();
+
+    entries.sort_by(|left, right| right.0.cmp(&left.0));
+    entries.truncate(limit);
+
+    entries
+        .into_iter()
+        .map(|(_, path)| RecentFileEntry {
+            name: path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("file")
+                .to_string(),
+            detail: recent_file_detail(&path),
+            path: path.display().to_string(),
+        })
+        .collect()
+}
+
+fn files_in_dir(root: &Path) -> Vec<(std::time::SystemTime, PathBuf)> {
+    let Ok(read_dir) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+
+    read_dir
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            let metadata = entry.metadata().ok()?;
+            if !metadata.is_file() {
+                return None;
+            }
+            if should_hide_recent_file(&path) {
+                return None;
+            }
+            let modified = metadata.modified().ok()?;
+            Some((modified, path))
+        })
+        .collect()
+}
+
+fn should_hide_recent_file(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return true;
+    };
+
+    if name.starts_with('.') {
+        return true;
+    }
+
+    matches!(
+        name,
+        ".DS_Store" | ".localized" | "Icon\r" | "Thumbs.db" | "desktop.ini"
+    )
+}
+
+fn recent_file_detail(path: &Path) -> String {
+    let folder = path
+        .parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|name| name.to_str())
+        .unwrap_or("Files");
+    let kind = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .filter(|ext| !ext.is_empty())
+        .map(|ext| ext.to_uppercase())
+        .unwrap_or_else(|| "FILE".into());
+
+    format!("{folder} • {kind}")
+}
+
 fn current_seat() -> String {
     std::env::var("XDG_SEAT").unwrap_or_else(|_| "seat0".into())
 }
@@ -1468,6 +1620,30 @@ fn taskbar_apps(
     }
 
     ordered
+}
+
+fn active_apps(
+    apps: &[apps::AppEntry],
+    running_counts: &HashMap<String, i32>,
+    limit: usize,
+) -> Vec<apps::AppEntry> {
+    let mut running = apps
+        .iter()
+        .filter(|app| running_counts.get(&app.id).copied().unwrap_or_default() > 0)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    running.sort_by(|left, right| {
+        running_counts
+            .get(&right.id)
+            .copied()
+            .unwrap_or_default()
+            .cmp(&running_counts.get(&left.id).copied().unwrap_or_default())
+            .then(left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+    });
+
+    running.truncate(limit);
+    running
 }
 
 fn ordered_apps_from_ids(

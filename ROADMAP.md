@@ -11,6 +11,7 @@ SeatShell should become:
 - a real Wayland desktop session, not just a nested demo window
 - a keyboard-friendly shell with launcher, desktop, panel, and overview workflows
 - a trustworthy local session-management surface
+- a visually distinctive desktop environment with a strong conceptual point of view
 - a small, understandable codebase with strong packaging and test discipline
 
 ## Current Baseline
@@ -19,6 +20,7 @@ The repository already has:
 
 - a `labwc`-backed session launcher
 - a Slint shell window with desktop, launcher, panel, and overview surfaces
+- a first-pass shared shell design system for spacing, color, and component styling
 - D-Bus services for admin discovery and user-side app launch
 - desktop file discovery and launching
 - release/install scripts and a session desktop entry
@@ -49,6 +51,8 @@ Objective: make SeatShell boot and behave like a real desktop session.
 
 ## Phase 2: Daily-Usable Shell
 
+Status: closed for the current shell UX scope. The daily shell workflow, first-run docs, empty states, and responsive windowed layouts are now in place; Linux login-session validation remains tracked under Phase 1.
+
 Objective: turn the shell from a proof-of-concept into something someone can live in.
 
 ### Milestones
@@ -62,8 +66,8 @@ Objective: turn the shell from a proof-of-concept into something someone can liv
 - [x] Running-app task strip merged with pinned favorites
 - [x] Better panel information architecture for power, network, audio, notifications
 - [x] Desktop context menu or command surface
-- [ ] Better empty/error states when no apps are discoverable
-- [ ] First-run user guidance in docs, not in-app clutter
+- [x] Better empty/error states when no apps are discoverable
+- [x] First-run user guidance in docs, not in-app clutter
 
 ### Definition of done
 
@@ -98,6 +102,16 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 
 ### Milestones
 
+- [x] Make the home surface feel like a real desktop canvas instead of a launcher/dashboard stack
+- [x] Move full app browsing into launcher/overlay surfaces so the desktop itself can prioritize workspace, active windows, files, and live system state
+- [ ] Replace static desktop mock objects with real desktop interactions
+- [ ] Draggable desktop icons with saved positions across restarts
+- [ ] Snap-to-grid, auto-arrange, and collision rules for desktop items
+- [ ] Desktop selection model: single-select, marquee selection, and keyboard focus movement
+- [ ] Desktop file objects that can be opened, highlighted, and handed off to default apps
+- [ ] Dock interaction parity with user expectations: focus, minimize/restore, running state, and active-window indication
+- [ ] Real active-window presence on the desktop surface instead of quiet-state placeholders when apps are running
+- [ ] Multi-monitor-aware desktop layout rules so icon placement and chrome do not break on different outputs
 - [ ] Notifications daemon integration
 - [x] Audio status/control
 - [ ] Power/battery status
@@ -111,6 +125,8 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 ### Definition of done
 
 - browsers, editors, portals, and core desktop flows behave normally
+- desktop objects can be moved, selected, relaunched, and trusted to stay where the user put them
+- the dock and desktop surface reflect real application state instead of static placeholders
 - SeatShell can be a primary session on a developer workstation
 
 ## Phase 5: Quality and Packaging
@@ -138,8 +154,11 @@ Objective: bring the shell up to “serious project” standards.
 
 ### Milestones
 
-- [ ] coherent spacing, color, and typography system
+- [x] first-pass coherent spacing, color, and typography system
+- [ ] second-pass visual polish across all shell states and interactions
 - [ ] icon strategy beyond placeholder initials
+- [ ] Interaction polish for desktop manipulation: drag thresholds, drop affordances, hover feedback, and non-janky motion
+- [ ] Keyboard parity for desktop objects: selection, repositioning, launching, and context actions without a mouse
 - [ ] focus rings and keyboard accessibility audit
 - [ ] high-DPI and scaling validation
 - [ ] localization-ready strings
@@ -149,6 +168,29 @@ Objective: bring the shell up to “serious project” standards.
 
 - the shell feels calm, readable, and robust
 - accessibility is part of the build, not an afterthought
+
+## Phase 7: Most Beautiful and Conceptual Desktop Env
+
+Status: in progress. A first full conceptual art-direction pass now exists in the shell UI, theme primitives, and design notes; remaining work is icon-system depth, motion, and broader usability validation.
+
+Objective: push SeatShell from “clean and usable” into a desktop environment with unmistakable authorship, atmosphere, and emotional pull.
+
+### Milestones
+
+- [x] Define a signature art direction for typography, color, light, texture, and motion
+- [ ] Replace placeholder letter-icons with a coherent icon and illustration system
+- [x] Design a more conceptual desktop home surface with stronger hierarchy and fewer generic dashboard patterns
+- [ ] Add animation and transition rules that feel deliberate without harming responsiveness
+- [x] Introduce a wallpaper, background, or scene treatment that gives the shell a recognisable identity
+- [x] Create polished states for empty, loading, error, and success surfaces so they feel designed rather than incidental
+- [ ] Validate beauty against usability: preserve keyboard speed, legibility, and low cognitive load
+- [x] Produce a visual reference set or design spec so contributors can extend the same language consistently
+
+### Definition of done
+
+- the shell is immediately recognisable from a screenshot
+- the design feels intentional, memorable, and cohesive across every surface
+- aesthetic ambition improves the product instead of fighting clarity or performance
 
 ## Release Milestones
 
@@ -195,7 +237,10 @@ Avoid:
 The next concrete engineering targets for this repository are:
 
 1. Validate display-manager session startup end to end on a real login manager
-2. Add power/session action polish
-3. Add notification daemon integration beyond shell-local storage
-4. Add VM-based integration tests under `dbus-run-session`
-5. Add portal and polkit integration
+2. Implement draggable desktop icons with persisted positions
+3. Add snap-to-grid and selection behavior so desktop objects feel reliable rather than decorative
+4. Add dock interaction parity for focus, minimize/restore, and running-state indication
+5. Add notification daemon integration beyond shell-local storage
+6. Start Phase 3 overview differentiation work for current, inactive, and locked sessions
+7. Add VM-based integration tests under `dbus-run-session`
+8. Add portal and polkit integration

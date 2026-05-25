@@ -14,14 +14,14 @@ export component AppRow inherits Rectangle {
     callback clicked();
     callback toggle-favorite();
 
-    height: 48px;
-    border-radius: ShellTheme.radius-md * 1px;
+    height: 64px;
+    border-radius: ShellTheme.radius-lg * 1px;
     border-width: 1px;
     border-color: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.outline;
     background: root.selected
-        ? ShellTheme.accent-soft
+        ? ShellTheme.surface-accent
         : touch.has-hover
-            ? ShellTheme.surface-strong
+            ? ShellTheme.surface-glow
             : ShellTheme.surface;
 
     touch := TouchArea {
@@ -31,28 +31,30 @@ export component AppRow inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: ShellTheme.space-sm * 1px;
-        padding-right: ShellTheme.space-sm * 1px;
-        spacing: ShellTheme.space-sm * 1px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
         alignment: center;
 
         Rectangle {
-            width: 28px;
-            height: 28px;
-            background: touch.has-hover ? ShellTheme.accent : ShellTheme.accent-soft;
-            border-radius: ShellTheme.radius-sm * 1px;
+            width: 42px;
+            height: 42px;
+            background: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.surface-muted;
+            border-radius: 999px;
+            border-width: 1px;
+            border-color: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.outline;
 
             if root.icon.width > 0 && root.icon.height > 0: Image {
                 source: root.icon;
-                width: 18px;
-                height: 18px;
-                x: 5px;
-                y: 5px;
+                width: 22px;
+                height: 22px;
+                x: 10px;
+                y: 10px;
             }
 
             if root.icon.width == 0 || root.icon.height == 0: Text {
                 text: root.icon-text;
-                color: ShellTheme.text-primary;
+                color: root.selected || touch.has-hover ? #1a120d : ShellTheme.text-primary;
                 font-size: 12px;
                 font-weight: 800;
                 horizontal-alignment: center;
@@ -61,28 +63,32 @@ export component AppRow inherits Rectangle {
         }
 
         VerticalLayout {
-            spacing: 2px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            spacing: 3px;
             horizontal-stretch: 1;
 
             Text {
                 text: root.name;
                 color: ShellTheme.text-primary;
-                font-size: 13px;
-                font-weight: 700;
+                font-size: 14px;
+                font-weight: 800;
                 overflow: elide;
+                horizontal-stretch: 1;
             }
 
             Text {
                 text: root.detail;
                 color: ShellTheme.text-muted;
-                font-size: 10px;
+                font-size: 11px;
                 overflow: elide;
+                horizontal-stretch: 1;
             }
         }
 
         if root.running-count > 0: Rectangle {
-            width: root.running-count > 1 ? 26px : 16px;
-            height: 18px;
+            width: root.running-count > 1 ? 28px : 18px;
+            height: 20px;
             background: root.running-count > 1 ? ShellTheme.accent-soft : transparent;
             border-radius: 999px;
             border-width: root.running-count > 1 ? 1px : 0px;
@@ -90,7 +96,7 @@ export component AppRow inherits Rectangle {
 
             Text {
                 text: root.running-count > 1 ? root.running-count + "" : "•";
-                color: ShellTheme.text-primary;
+                color: root.running-count > 1 ? ShellTheme.text-accent : ShellTheme.text-primary;
                 font-size: root.running-count > 1 ? 10px : 14px;
                 font-weight: 700;
                 horizontal-alignment: center;
@@ -99,13 +105,14 @@ export component AppRow inherits Rectangle {
         }
 
         Rectangle {
-            width: 24px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             background: transparent;
+            opacity: touch.has-hover || root.selected ? 1 : 0.55;
 
             Text {
                 text: ">";
-                color: touch.has-hover ? ShellTheme.text-primary : ShellTheme.text-secondary;
+                color: touch.has-hover || root.selected ? ShellTheme.text-accent : ShellTheme.text-secondary;
                 font-size: 12px;
                 font-weight: 700;
                 horizontal-alignment: center;
@@ -114,10 +121,10 @@ export component AppRow inherits Rectangle {
         }
 
         if root.show-favorite-toggle: Rectangle {
-            width: 48px;
-            height: 24px;
-            background: root.favorite ? ShellTheme.accent-soft : ShellTheme.surface-muted;
-            border-radius: ShellTheme.radius-sm * 1px;
+            width: 60px;
+            height: 30px;
+            background: root.favorite ? ShellTheme.surface-accent : ShellTheme.surface-muted;
+            border-radius: 999px;
             border-width: 1px;
             border-color: root.favorite ? ShellTheme.accent : ShellTheme.outline;
 
@@ -128,9 +135,9 @@ export component AppRow inherits Rectangle {
             }
 
             Text {
-                text: root.favorite ? "On" : "Pin";
-                color: ShellTheme.text-primary;
-                font-size: 10px;
+                text: root.favorite ? "Kept" : "Pin";
+                color: root.favorite ? ShellTheme.text-accent : ShellTheme.text-primary;
+                font-size: 11px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;

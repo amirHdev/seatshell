@@ -15,7 +15,7 @@ export component CommandSurface inherits Rectangle {
     callback show-overview();
     callback launch-app(string);
 
-    background: #05080dbb;
+    background: ShellTheme.background-veil;
 
     touch := TouchArea {
         clicked => {
@@ -29,7 +29,7 @@ export component CommandSurface inherits Rectangle {
         width: min(root.width - 48px, 440px);
         height: min(root.height - 48px, 520px);
         background: ShellTheme.background-elevated;
-        border-radius: ShellTheme.radius-lg * 1px;
+        border-radius: ShellTheme.radius-xl * 1px;
         border-width: 1px;
         border-color: ShellTheme.outline;
 
@@ -53,14 +53,14 @@ export component CommandSurface inherits Rectangle {
                     }
 
                     Text {
-                        text: "Fast shell controls and a few trusted launch targets.";
+                        text: "A focused layer for decisive moves and trusted launch paths.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
                 }
 
                 ShellPill {
-                    label: "Desktop";
+                    label: "Quick layer";
                     compact: true;
                 }
 

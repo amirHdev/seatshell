@@ -17,8 +17,8 @@ export component Panel inherits Rectangle {
     in property <bool> show-overview: false;
     in property <bool> show-notifications: false;
     in property <bool> show-user-switcher: true;
-    in property <bool> compact: root.width < 1200px;
-    in property <bool> wide: root.width >= 1460px;
+    in property <bool> narrow: root.width < 980px;
+    in property <bool> compact: root.width < 1280px;
     callback toggle-launcher();
     callback toggle-overview();
     callback toggle-notifications();
@@ -29,155 +29,187 @@ export component Panel inherits Rectangle {
     callback show-desktop();
     callback launch-app(string);
 
-    background: ShellTheme.background-elevated;
+    background: #0d131dbf;
     border-width: 1px;
     border-color: ShellTheme.outline;
 
     HorizontalLayout {
-        padding-left: 10px;
-        padding-right: 10px;
-        spacing: 8px;
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
         alignment: center;
 
-        HorizontalLayout {
-            spacing: 6px;
-            alignment: center;
+        Rectangle {
+            min-width: root.narrow ? 104px : 146px;
+            height: parent.height;
+            background: transparent;
 
-            Rectangle {
-                width: 20px;
-                height: 20px;
-                background: ShellTheme.accent-soft;
-                border-radius: ShellTheme.radius-sm * 1px;
+            HorizontalLayout {
+                padding-top: 6px;
+                padding-bottom: 6px;
+                spacing: 10px;
+                alignment: center;
 
-                Text {
-                    text: "S";
-                    color: ShellTheme.text-primary;
-                    font-size: 11px;
-                    font-weight: 800;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    background: ShellTheme.accent;
+                    border-radius: 999px;
+                    border-width: 1px;
+                    border-color: ShellTheme.accent;
+
+                    Text {
+                        text: "S";
+                        color: #1a120d;
+                        font-size: 13px;
+                        font-weight: 800;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
-            }
 
-            if !root.compact: Text {
-                text: "SeatShell";
-                color: ShellTheme.text-primary;
-                font-size: 13px;
-                font-weight: 800;
+                if !root.narrow: VerticalLayout {
+                    spacing: 1px;
+                    horizontal-stretch: 1;
+
+                    Text {
+                        text: "SeatShell";
+                        color: ShellTheme.text-primary;
+                        font-size: 13px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        text: root.status-text;
+                        color: ShellTheme.text-secondary;
+                        font-size: 10px;
+                        overflow: elide;
+                    }
+                }
             }
         }
 
         Rectangle {
-            width: 1px;
-            height: 18px;
-            background: ShellTheme.outline;
-        }
-
-        ShellAction {
-            label: root.wide ? "Desktop" : "";
-            icon-text: "D";
-            active: !root.show-launcher && !root.show-overview;
-            compact: true;
-            clicked => {
-                root.show-desktop();
-            }
-        }
-
-        ShellAction {
-            label: root.wide ? "Apps" : "";
-            icon-text: "A";
-            active: root.show-launcher;
-            compact: true;
-            clicked => {
-                root.toggle-launcher();
-            }
-        }
-
-        if root.show-user-switcher: ShellAction {
-            label: root.wide ? "Sessions" : "";
-            icon-text: "U";
-            active: root.show-overview;
-            compact: true;
-            clicked => {
-                root.toggle-overview();
-            }
-        }
-
-        HorizontalLayout {
             horizontal-stretch: 1;
-            spacing: 6px;
+            height: parent.height;
+            background: transparent;
 
             Rectangle {
-                horizontal-stretch: 1;
-                background: transparent;
-            }
+                width: min(parent.width, root.narrow ? 236px : 300px);
+                height: 52px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                background: #162130d9;
+                border-radius: 999px;
+                border-width: 1px;
+                border-color: ShellTheme.outline;
 
-            for app in root.panel-apps: DockItem {
-                label: root.wide ? app.name : "";
-                icon-text: app.icon_text;
-                icon: app.icon;
-                active: app.running_count > 0;
-                running-count: app.running_count;
-                clicked => {
-                    root.launch-app(app.id);
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 12px;
+                    alignment: center;
+
+                    DockItem {
+                        label: "";
+                        icon-text: "D";
+                        running-count: 0;
+                        active: !root.show-launcher && !root.show-overview;
+                        clicked => {
+                            root.show-desktop();
+                        }
+                    }
+
+                    DockItem {
+                        label: "";
+                        icon-text: "A";
+                        running-count: 0;
+                        active: root.show-launcher;
+                        clicked => {
+                            root.toggle-launcher();
+                        }
+                    }
+
+                    if root.show-user-switcher: DockItem {
+                        label: "";
+                        icon-text: "U";
+                        running-count: 0;
+                        active: root.show-overview;
+                        clicked => {
+                            root.toggle-overview();
+                        }
+                    }
+
+                    for app in root.panel-apps: DockItem {
+                        label: "";
+                        icon-text: app.icon_text;
+                        icon: app.icon;
+                        active: app.running_count > 0;
+                        running-count: app.running_count;
+                        clicked => {
+                            root.launch-app(app.id);
+                        }
+                    }
                 }
             }
+        }
+
+        Rectangle {
+            min-width: root.narrow ? 96px : 150px;
+            height: parent.height;
+            background: transparent;
 
             Rectangle {
-                horizontal-stretch: 1;
-                background: transparent;
-            }
-        }
+                width: root.narrow ? 92px : 130px;
+                height: 36px;
+                x: parent.width - self.width;
+                y: (parent.height - self.height) / 2;
+                background: #152030d9;
+                border-radius: 999px;
+                border-width: 1px;
+                border-color: ShellTheme.outline;
 
-        ShellAction {
-            label: root.wide ? root.network-text : "";
-            icon-text: "W";
-            compact: true;
-            clicked => {
-                root.toggle-network();
-            }
-        }
-        HorizontalLayout {
-            spacing: 4px;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    alignment: center;
 
-            ShellAction {
-                label: "";
-                icon-text: "-";
-                compact: true;
-                clicked => {
-                    root.volume-down();
+                    if !root.narrow: ShellAction {
+                        label: "";
+                        icon-text: "W";
+                        compact: true;
+                        clicked => {
+                            root.toggle-network();
+                        }
+                    }
+
+                    if !root.narrow: ShellAction {
+                        label: "";
+                        icon-text: "V";
+                        compact: true;
+                        clicked => {
+                            root.toggle-mute();
+                        }
+                    }
+
+                    ShellAction {
+                        label: root.notification-count > 0 ? root.notification-count + "" : "";
+                        icon-text: "N";
+                        active: root.show-notifications;
+                        compact: true;
+                        clicked => {
+                            root.toggle-notifications();
+                        }
+                    }
+
+                    ShellPill {
+                        label: root.clock-text;
+                        tone: ShellTheme.surface-accent;
+                        compact: true;
+                    }
                 }
             }
-
-            ShellAction {
-                label: root.wide ? root.audio-text : "";
-                icon-text: "V";
-                compact: true;
-                clicked => {
-                    root.toggle-mute();
-                }
-            }
-
-            ShellAction {
-                label: "";
-                icon-text: "+";
-                compact: true;
-                clicked => {
-                    root.volume-up();
-                }
-            }
         }
-        if !root.compact: ShellPill { label: root.power-text; compact: true; }
-        ShellAction {
-            label: root.wide && root.notification-count > 0 ? root.notification-count + "" : "";
-            icon-text: "N";
-            active: root.show-notifications;
-            compact: true;
-            clicked => {
-                root.toggle-notifications();
-            }
-        }
-        if root.show-user-switcher: ShellPill { label: root.session-count + "S"; compact: true; }
-        ShellPill { label: root.clock-text; tone: ShellTheme.accent-soft; compact: true; }
     }
 }

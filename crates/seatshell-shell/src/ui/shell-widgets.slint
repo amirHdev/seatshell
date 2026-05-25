@@ -8,15 +8,20 @@ export component ShellAction inherits Rectangle {
     in property <bool> compact: false;
     callback clicked();
 
-    min-width: root.compact ? 46px : 74px;
-    height: root.compact ? 30px : 32px;
-    border-radius: ShellTheme.radius-md * 1px;
+    width: root.label == ""
+        ? (root.compact ? 38px : 42px)
+        : max(
+            root.compact ? 108px : 124px,
+            label-metrics.preferred-width + (root.compact ? 36px : 42px)
+        );
+    height: root.compact ? 34px : 38px;
+    border-radius: 999px;
     border-width: 1px;
-    border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+    border-color: root.active ? ShellTheme.accent : touch.has-hover ? ShellTheme.outline-strong : ShellTheme.outline;
     background: root.active
-        ? ShellTheme.accent-soft
+        ? ShellTheme.surface-accent
         : touch.has-hover
-            ? ShellTheme.surface-strong
+            ? ShellTheme.surface-glow
             : root.quiet
                 ? transparent
                 : ShellTheme.surface;
@@ -27,21 +32,30 @@ export component ShellAction inherits Rectangle {
         }
     }
 
+    label-metrics := Text {
+        text: root.label;
+        font-size: 11px;
+        font-weight: root.active ? 700 : 600;
+        visible: false;
+    }
+
     HorizontalLayout {
-        padding-left: root.compact ? 8px : 10px;
-        padding-right: root.compact ? 8px : 10px;
-        spacing: 6px;
+        padding-left: root.compact ? 10px : 13px;
+        padding-right: root.compact ? 10px : 13px;
+        spacing: 8px;
         alignment: center;
 
         if root.icon-text != "": Rectangle {
-            width: root.compact ? 16px : 18px;
-            height: root.compact ? 16px : 18px;
-            border-radius: ShellTheme.radius-sm * 1px;
-            background: root.active ? ShellTheme.accent : ShellTheme.surface-strong;
+            width: root.compact ? 20px : 22px;
+            height: root.compact ? 20px : 22px;
+            border-radius: 999px;
+            background: root.active ? ShellTheme.accent : ShellTheme.surface-muted;
+            border-width: 1px;
+            border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
 
             Text {
                 text: root.icon-text;
-                color: ShellTheme.text-primary;
+                color: root.active ? #1a120d : ShellTheme.text-primary;
                 font-size: 10px;
                 font-weight: 800;
                 horizontal-alignment: center;
@@ -52,7 +66,7 @@ export component ShellAction inherits Rectangle {
         if root.label != "": Text {
             text: root.label;
             color: root.active ? ShellTheme.text-primary : ShellTheme.text-secondary;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: root.active ? 700 : 600;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -64,19 +78,28 @@ export component ShellPill inherits Rectangle {
     in property <string> label;
     in property <color> tone: ShellTheme.surface-strong;
     in property <bool> compact: false;
-
-    height: root.compact ? 24px : 26px;
-    min-width: 54px;
+    width: max(
+        root.compact ? 82px : 94px,
+        label-metrics.preferred-width + (root.compact ? 28px : 34px)
+    );
+    height: root.compact ? 26px : 30px;
     border-radius: 999px;
     background: root.tone;
     border-width: 1px;
-    border-color: ShellTheme.outline;
+    border-color: ShellTheme.outline-strong;
+
+    label-metrics := Text {
+        text: root.label;
+        font-size: 10px;
+        font-weight: 700;
+        visible: false;
+    }
 
     Text {
         text: root.label;
         color: ShellTheme.text-secondary;
         font-size: 10px;
-        font-weight: 600;
+        font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -90,15 +113,17 @@ export component DockItem inherits Rectangle {
     in property <int> running-count: 0;
     callback clicked();
 
-    min-width: 36px;
-    height: 30px;
-    border-radius: ShellTheme.radius-md * 1px;
+    width: root.label == ""
+        ? 50px
+        : max(104px, label-metrics.preferred-width + 42px);
+    height: 44px;
+    border-radius: ShellTheme.radius-lg * 1px;
     border-width: 1px;
-    border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+    border-color: root.active ? ShellTheme.accent : touch.has-hover ? ShellTheme.outline-strong : ShellTheme.outline;
     background: touch.has-hover
-        ? ShellTheme.surface-strong
+        ? ShellTheme.surface-glow
         : root.active
-            ? ShellTheme.accent-soft
+            ? ShellTheme.surface-accent
             : ShellTheme.surface;
 
     touch := TouchArea {
@@ -107,30 +132,39 @@ export component DockItem inherits Rectangle {
         }
     }
 
+    label-metrics := Text {
+        text: root.label;
+        font-size: 11px;
+        font-weight: 700;
+        visible: false;
+    }
+
     HorizontalLayout {
-        padding-left: 8px;
-        padding-right: 8px;
-        spacing: 6px;
+        padding-left: 11px;
+        padding-right: 11px;
+        spacing: 7px;
         alignment: center;
 
         Rectangle {
-            width: 16px;
-            height: 16px;
-            border-radius: ShellTheme.radius-sm * 1px;
-            background: root.active ? ShellTheme.accent : ShellTheme.surface-strong;
+            width: 24px;
+            height: 24px;
+            border-radius: 999px;
+            background: root.active ? ShellTheme.accent : ShellTheme.surface-muted;
+            border-width: 1px;
+            border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
 
             if root.icon.width > 0 && root.icon.height > 0: Image {
                 source: root.icon;
-                width: 12px;
-                height: 12px;
-                x: 2px;
-                y: 2px;
+                width: 14px;
+                height: 14px;
+                x: 5px;
+                y: 5px;
             }
 
             if root.icon.width == 0 || root.icon.height == 0: Text {
                 text: root.icon-text;
-                color: ShellTheme.text-primary;
-                font-size: 9px;
+                color: root.active ? #1a120d : ShellTheme.text-primary;
+                font-size: 10px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -141,7 +175,7 @@ export component DockItem inherits Rectangle {
             text: root.label;
             color: ShellTheme.text-primary;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             overflow: elide;
         }
 
@@ -149,18 +183,27 @@ export component DockItem inherits Rectangle {
             width: root.running-count > 1 ? 18px : 8px;
             height: 14px;
             border-radius: 999px;
-            background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.accent-soft;
+            background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.surface-accent;
             border-width: 1px;
             border-color: ShellTheme.accent;
 
             if root.running-count > 1: Text {
                 text: root.running-count + "";
-                color: ShellTheme.text-primary;
+                color: #1a120d;
                 font-size: 9px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
+    }
+
+    if root.active || root.running-count > 0: Rectangle {
+        width: root.running-count > 1 ? 18px : 8px;
+        height: 4px;
+        y: parent.height - 6px;
+        x: (parent.width - self.width) / 2;
+        border-radius: 999px;
+        background: ShellTheme.accent;
     }
 }

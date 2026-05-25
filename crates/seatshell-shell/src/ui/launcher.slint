@@ -21,6 +21,8 @@ export component Launcher inherits Rectangle {
     in property <[LauncherApp]> recent-apps;
     in property <string> query;
     in property <int> app-count;
+    in property <bool> compact: root.width < 760px;
+    in property <bool> wide: root.width >= 1020px;
 
     callback launch-app(string);
     callback search-changed(string);
@@ -29,47 +31,66 @@ export component Launcher inherits Rectangle {
     callback toggle-favorite(string);
     callback close();
 
-    background: #06101ae6;
-    in property <bool> wide: root.width >= 960px;
+    background: ShellTheme.background-veil;
 
     Rectangle {
-        x: min(16px, root.width * 0.025);
-        y: min(16px, root.height * 0.025);
-        width: min(root.width - 32px, 1000px);
-        height: min(root.height - 32px, 640px);
+        x: root.width - 280px;
+        y: 24px;
+        width: 260px;
+        height: 260px;
+        background: ShellTheme.ambient-secondary;
+        border-radius: 999px;
+        opacity: 0.28;
+    }
+
+    Rectangle {
+        x: 18px;
+        y: root.height - 220px;
+        width: 220px;
+        height: 220px;
+        background: ShellTheme.ambient-primary;
+        border-radius: 999px;
+        opacity: 0.24;
+    }
+
+    Rectangle {
+        x: max(10px, (root.width - min(root.width - 20px, 1080px)) / 2);
+        y: max(10px, (root.height - min(root.height - 20px, 680px)) / 2);
+        width: min(root.width - 20px, 1080px);
+        height: min(root.height - 20px, 680px);
         background: ShellTheme.background-elevated;
-        border-radius: ShellTheme.radius-lg * 1px;
+        border-radius: ShellTheme.radius-xl * 1px;
         border-width: 1px;
-        border-color: ShellTheme.outline;
+        border-color: ShellTheme.outline-strong;
 
         VerticalLayout {
-            padding: 14px;
+            padding: root.compact ? 12px : 16px;
             spacing: 12px;
 
-            HorizontalLayout {
+            if !root.compact: HorizontalLayout {
                 spacing: 12px;
                 alignment: center;
 
                 VerticalLayout {
-                    spacing: 2px;
+                    spacing: 3px;
                     horizontal-stretch: 1;
 
                     Text {
-                        text: "Applications";
+                        text: "Application constellation";
                         color: ShellTheme.text-primary;
-                        font-size: 18px;
+                        font-size: 20px;
                         font-weight: 800;
                     }
 
                     Text {
-                        text: "Search, launch, and pin tools.";
+                        text: "Search, launch, and keep your closest tools in a shelf that feels curated rather than crowded.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
                 }
 
                 ShellPill {
-                    label: root.app-count + " apps";
+                    label: root.app-count + " results";
                     compact: true;
                 }
 
@@ -83,34 +104,83 @@ export component Launcher inherits Rectangle {
                 }
             }
 
-            LineEdit {
-                text: root.query;
-                placeholder-text: "Search applications";
-                edited(text) => {
-                    root.search-changed(text);
+            if root.compact: VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Application constellation";
+                    color: ShellTheme.text-primary;
+                    font-size: 18px;
+                    font-weight: 800;
                 }
-                accepted(text) => {
-                    root.accept-search();
+
+                Text {
+                    text: "Search, launch, and keep your closest tools in a shelf that feels curated rather than crowded.";
+                    color: ShellTheme.text-secondary;
+                    font-size: 11px;
+                    wrap: word-wrap;
                 }
-                key-pressed(event) => {
-                    if (event.text == Key.UpArrow) {
-                        root.move-selection(-1);
-                        accept
-                    } else if (event.text == Key.DownArrow) {
-                        root.move-selection(1);
-                        accept
-                    } else if (event.text == Key.Escape) {
-                        root.close();
-                        accept
-                    } else {
-                        reject
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    ShellPill {
+                        label: root.app-count + " results";
+                        compact: true;
+                    }
+
+                    ShellAction {
+                        label: "Close";
+                        icon-text: "X";
+                        compact: true;
+                        clicked => {
+                            root.close();
+                        }
                     }
                 }
             }
 
             Rectangle {
-                height: 1px;
-                background: ShellTheme.outline;
+                background: ShellTheme.surface;
+                border-radius: ShellTheme.radius-lg * 1px;
+                border-width: 1px;
+                border-color: ShellTheme.outline;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: root.query == "" ? "Start with a name, category, or command hint." : "Refine the field, then press Enter to launch the selected app.";
+                        color: ShellTheme.text-secondary;
+                        font-size: 11px;
+                    }
+
+                    LineEdit {
+                        text: root.query;
+                        placeholder-text: "Search applications";
+                        edited(text) => {
+                            root.search-changed(text);
+                        }
+                        accepted(text) => {
+                            root.accept-search();
+                        }
+                        key-pressed(event) => {
+                            if (event.text == Key.UpArrow) {
+                                root.move-selection(-1);
+                                accept
+                            } else if (event.text == Key.DownArrow) {
+                                root.move-selection(1);
+                                accept
+                            } else if (event.text == Key.Escape) {
+                                root.close();
+                                accept
+                            } else {
+                                reject
+                            }
+                        }
+                    }
+                }
             }
 
             if root.wide: HorizontalLayout {
@@ -118,8 +188,11 @@ export component Launcher inherits Rectangle {
                 spacing: 14px;
 
                 Rectangle {
-                    width: 268px;
-                    background: transparent;
+                    width: 296px;
+                    background: ShellTheme.surface;
+                    border-radius: ShellTheme.radius-xl * 1px;
+                    border-width: 1px;
+                    border-color: ShellTheme.outline;
 
                     ScrollView {
                         width: parent.width;
@@ -127,7 +200,34 @@ export component Launcher inherits Rectangle {
                         viewport-width: self.width;
 
                         VerticalLayout {
+                            padding: 14px;
                             spacing: 14px;
+
+                            Rectangle {
+                                background: ShellTheme.background-elevated;
+                                border-radius: ShellTheme.radius-lg * 1px;
+                                border-width: 1px;
+                                border-color: ShellTheme.outline;
+
+                                VerticalLayout {
+                                    padding: 12px;
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Intent";
+                                        color: ShellTheme.text-primary;
+                                        font-size: 14px;
+                                        font-weight: 800;
+                                    }
+
+                                    Text {
+                                        text: "The launcher should feel like a composed shelf: a few trusted anchors, a quick search path, and no visual panic.";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                    }
+                                }
+                            }
 
                             if root.featured-apps.length > 0: Rectangle {
                                 background: transparent;
@@ -180,6 +280,7 @@ export component Launcher inherits Rectangle {
                                         icon-text: app.icon_text;
                                         icon: app.icon;
                                         favorite: app.favorite;
+                                        running-count: app.running_count;
                                         accent: root.accent;
                                         clicked => {
                                             root.launch-app(app.id);
@@ -195,38 +296,55 @@ export component Launcher inherits Rectangle {
                 }
 
                 Rectangle {
-                    width: 1px;
-                    vertical-stretch: 1;
-                    background: ShellTheme.outline;
-                }
-
-                Rectangle {
                     horizontal-stretch: 1;
-                    background: transparent;
+                    background: ShellTheme.surface;
+                    border-radius: ShellTheme.radius-xl * 1px;
+                    border-width: 1px;
+                    border-color: ShellTheme.outline;
 
                     VerticalLayout {
+                        padding: 14px;
                         spacing: 10px;
 
                         Text {
-                            text: root.query == "" ? "Browse all applications" : "Search results";
+                            text: root.query == "" ? "All applications" : "Search results";
                             color: ShellTheme.text-primary;
-                            font-size: 15px;
+                            font-size: 16px;
                             font-weight: 800;
                         }
 
+                        Text {
+                            text: root.query == "" ? "Browse the full field or start typing to narrow the constellation." : "The selected row responds to Enter, and the pin toggle keeps important tools nearby.";
+                            color: ShellTheme.text-secondary;
+                            font-size: 11px;
+                        }
+
                         if root.app-count == 0: Rectangle {
-                            height: 72px;
-                            background: ShellTheme.surface;
-                            border-radius: ShellTheme.radius-md * 1px;
+                            background: ShellTheme.background-elevated;
+                            border-radius: ShellTheme.radius-lg * 1px;
                             border-width: 1px;
                             border-color: ShellTheme.outline;
 
-                            Text {
-                                text: "No matching applications";
-                                color: ShellTheme.text-secondary;
-                                font-size: 14px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
+                            VerticalLayout {
+                                padding: 16px;
+                                spacing: 6px;
+                                alignment: center;
+
+                                Text {
+                                    text: root.query == "" ? "No applications discovered yet" : "No matching applications";
+                                    color: ShellTheme.text-primary;
+                                    font-size: 15px;
+                                    font-weight: 700;
+                                    horizontal-alignment: center;
+                                }
+
+                                Text {
+                                    text: root.query == "" ? "SeatShell did not find desktop entries for this session. Check the install path or session environment." : "Try a broader term, clear the query, or pin a frequent app from the browse view.";
+                                    color: ShellTheme.text-secondary;
+                                    font-size: 11px;
+                                    wrap: word-wrap;
+                                    horizontal-alignment: center;
+                                }
                             }
                         }
 
@@ -235,17 +353,17 @@ export component Launcher inherits Rectangle {
                             viewport-width: self.width;
 
                             VerticalLayout {
-                                spacing: 6px;
+                                spacing: 8px;
 
                                 for app in root.apps: AppRow {
                                     name: app.name;
                                     detail: app.detail;
-                                        icon-text: app.icon_text;
-                                        icon: app.icon;
-                                        selected: app.selected;
-                                        favorite: app.favorite;
-                                        running-count: app.running_count;
-                                        show-favorite-toggle: true;
+                                    icon-text: app.icon_text;
+                                    icon: app.icon;
+                                    selected: app.selected;
+                                    favorite: app.favorite;
+                                    running-count: app.running_count;
+                                    show-favorite-toggle: true;
                                     accent: root.accent;
                                     clicked => {
                                         root.launch-app(app.id);
@@ -265,97 +383,140 @@ export component Launcher inherits Rectangle {
                 viewport-width: self.width;
 
                 VerticalLayout {
-                    spacing: 16px;
+                    spacing: 14px;
 
-                    if root.featured-apps.length > 0: Rectangle {
-                        background: transparent;
+                    Rectangle {
+                        background: ShellTheme.surface;
+                        border-radius: ShellTheme.radius-xl * 1px;
+                        border-width: 1px;
+                        border-color: ShellTheme.outline;
 
                         VerticalLayout {
+                            padding: 14px;
                             spacing: 8px;
 
                             Text {
-                                text: "Pinned";
+                                text: "Pinned and recent";
                                 color: ShellTheme.text-primary;
-                                font-size: 14px;
+                                font-size: 15px;
                                 font-weight: 800;
                             }
-
-                            for app in root.featured-apps: AppRow {
-                                name: app.name;
-                                detail: app.detail;
-                                icon-text: app.icon_text;
-                                icon: app.icon;
-                                favorite: app.favorite;
-                                running-count: app.running_count;
-                                accent: root.accent;
-                                show-favorite-toggle: true;
-                                clicked => {
-                                    root.launch-app(app.id);
-                                }
-                                toggle-favorite => {
-                                    root.toggle-favorite(app.id);
-                                }
-                            }
-                        }
-                    }
-
-                    if root.recent-apps.length > 0: Rectangle {
-                        background: transparent;
-
-                        VerticalLayout {
-                            spacing: 8px;
 
                             Text {
-                                text: "Recent";
-                                color: ShellTheme.text-primary;
-                                font-size: 14px;
-                                font-weight: 800;
+                                text: "Keep favorites close and use the search box when the list gets crowded.";
+                                color: ShellTheme.text-secondary;
+                                font-size: 11px;
+                                wrap: word-wrap;
                             }
 
-                            for app in root.recent-apps: AppRow {
-                                name: app.name;
-                                detail: app.detail;
-                                icon-text: app.icon_text;
-                                icon: app.icon;
-                                favorite: app.favorite;
-                                running-count: app.running_count;
-                                accent: root.accent;
-                                clicked => {
-                                    root.launch-app(app.id);
+                            if root.featured-apps.length > 0: Rectangle {
+                                background: transparent;
+
+                                VerticalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Pinned";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                    }
+
+                                    for app in root.featured-apps: AppRow {
+                                        name: app.name;
+                                        detail: app.detail;
+                                        icon-text: app.icon_text;
+                                        icon: app.icon;
+                                        favorite: app.favorite;
+                                        running-count: app.running_count;
+                                        accent: root.accent;
+                                        show-favorite-toggle: true;
+                                        clicked => {
+                                            root.launch-app(app.id);
+                                        }
+                                        toggle-favorite => {
+                                            root.toggle-favorite(app.id);
+                                        }
+                                    }
                                 }
-                                toggle-favorite => {
-                                    root.toggle-favorite(app.id);
+                            }
+
+                            if root.recent-apps.length > 0: Rectangle {
+                                background: transparent;
+
+                                VerticalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: "Recent";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 12px;
+                                        font-weight: 700;
+                                    }
+
+                                    for app in root.recent-apps: AppRow {
+                                        name: app.name;
+                                        detail: app.detail;
+                                        icon-text: app.icon_text;
+                                        icon: app.icon;
+                                        favorite: app.favorite;
+                                        running-count: app.running_count;
+                                        accent: root.accent;
+                                        clicked => {
+                                            root.launch-app(app.id);
+                                        }
+                                        toggle-favorite => {
+                                            root.toggle-favorite(app.id);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
 
                     Rectangle {
-                        background: transparent;
+                        background: ShellTheme.surface;
+                        border-radius: ShellTheme.radius-xl * 1px;
+                        border-width: 1px;
+                        border-color: ShellTheme.outline;
 
                         VerticalLayout {
+                            padding: 14px;
                             spacing: 8px;
 
                             Text {
                                 text: root.query == "" ? "Browse all applications" : "Search results";
                                 color: ShellTheme.text-primary;
-                                font-size: 14px;
+                                font-size: 15px;
                                 font-weight: 800;
                             }
 
                             if root.app-count == 0: Rectangle {
-                                height: 72px;
-                                background: ShellTheme.surface;
-                                border-radius: ShellTheme.radius-md * 1px;
+                                background: ShellTheme.background-elevated;
+                                border-radius: ShellTheme.radius-lg * 1px;
                                 border-width: 1px;
                                 border-color: ShellTheme.outline;
 
-                                Text {
-                                    text: "No matching applications";
-                                    color: ShellTheme.text-secondary;
-                                    font-size: 14px;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Text {
+                                        text: root.query == "" ? "No applications discovered yet" : "No matching applications";
+                                        color: ShellTheme.text-primary;
+                                        font-size: 15px;
+                                        font-weight: 700;
+                                        horizontal-alignment: center;
+                                    }
+
+                                    Text {
+                                        text: root.query == "" ? "SeatShell did not find desktop entries for this session. Check the install path or session environment." : "Try a broader term or clear the current query.";
+                                        color: ShellTheme.text-secondary;
+                                        font-size: 11px;
+                                        wrap: word-wrap;
+                                        horizontal-alignment: center;
+                                    }
                                 }
                             }
 

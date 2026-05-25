@@ -35,6 +35,33 @@ cargo run -p seatshell-shell -- --windowed
 scripts/run-seatshell.sh --dry-run
 ```
 
+## First Run
+
+For a first pass on macOS, stay in the windowed shell path instead of trying to boot the full Wayland session:
+
+```sh
+cargo run -p seatshell-shell -- --windowed
+```
+
+That path is the best place to validate the shell UI on macOS:
+
+- inspect the panel, desktop, launcher, overview, command surface, and notifications
+- resize the window to catch spacing or clipping issues
+- confirm launcher search, pinned apps, recents, and overview keyboard navigation still behave correctly
+
+If Cargo fails during linking on macOS, accept the Xcode license first:
+
+```sh
+sudo xcodebuild -license
+```
+
+For the first real Linux session pass, use the session runner or nested script:
+
+```sh
+scripts/run-seatshell.sh --windowed
+scripts/run-seatshell.sh
+```
+
 Build and run the desktop shell from release binaries:
 
 ```sh

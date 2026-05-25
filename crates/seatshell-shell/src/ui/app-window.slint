@@ -4,6 +4,7 @@ import { CommandSurface } from "command-surface.slint";
 import { Launcher, LauncherApp } from "launcher.slint";
 import { NotificationCenter, NotificationEntry } from "notification-center.slint";
 import { Overview, UserSession } from "overview.slint";
+import { DesktopFile } from "desktop.slint";
 import { ShellTheme } from "shell-theme.slint";
 
 export component AppWindow inherits Window {
@@ -12,6 +13,8 @@ export component AppWindow inherits Window {
     in property <[LauncherApp]> launcher-apps;
     in property <[LauncherApp]> featured-apps;
     in property <[LauncherApp]> recent-apps;
+    in property <[LauncherApp]> active-apps;
+    in property <[DesktopFile]> recent-files;
     in property <[LauncherApp]> panel-apps;
     in property <[NotificationEntry]> notifications;
     in property <[UserSession]> user-sessions;
@@ -49,6 +52,7 @@ export component AppWindow inherits Window {
     callback toggle-mute();
     callback clear-notifications();
     callback dismiss-notification(int);
+    callback open-file(string);
     callback launcher-search-changed(string);
     callback launcher-accept-search();
     callback move-launcher-selection(int);
@@ -164,14 +168,20 @@ export component AppWindow inherits Window {
                 accent: root.accent;
                 clock-text: root.clock-text;
                 status-text: root.status-text;
+                network-text: root.network-text;
+                power-text: root.power-text;
+                audio-text: root.audio-text;
                 apps: root.launcher-apps;
                 featured-apps: root.featured-apps;
                 recent-apps: root.recent-apps;
+                active-apps: root.active-apps;
+                recent-files: root.recent-files;
                 user-name: root.user-name;
                 theme-name: root.theme-name;
                 wallpaper-path: root.wallpaper-path;
                 app-count: root.app-count;
                 session-count: root.session-count;
+                notification-count: root.notification-count;
                 overview-enabled: root.overview-enabled;
                 show-launcher => {
                     root.toggle-launcher();
@@ -186,6 +196,9 @@ export component AppWindow inherits Window {
                 }
                 launch-app(id) => {
                     root.launch-app(id);
+                }
+                open-file(path) => {
+                    root.open-file(path);
                 }
             }
 
