@@ -13,6 +13,7 @@ cargo run -p seatshell-user-agent -- --dry-run
 cargo run -p seatshell-admin-daemon -- --dry-run
 scripts/run-seatshell.sh --dry-run
 scripts/run-seatshell.sh --windowed --dry-run
+scripts/smoke-dbus.sh
 scripts/install-seatshell.sh --debug --prefix /tmp/seatshell-install
 PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
 PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
@@ -50,13 +51,20 @@ PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
 PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
 ```
 
+The D-Bus smoke test starts `seatshell-admin-daemon` and `seatshell-user-agent`
+inside `dbus-run-session` and verifies that their registered methods respond.
+It skips when `dbus-run-session` or `gdbus` is unavailable.
+
 Then move to a Linux VM with labwc:
 
 ```sh
-dbus-run-session labwc
-seatshell-shell &
-seatshell-user-agent &
+cargo build --workspace
+scripts/smoke-labwc.sh
 ```
+
+The labwc smoke test starts `seatshell-session` inside `dbus-run-session` with
+the checked-in labwc config directory and treats timeout as success, because a
+healthy desktop session should keep running until the harness stops it.
 
 Before tagging a desktop release, verify in that Linux/labwc session that:
 

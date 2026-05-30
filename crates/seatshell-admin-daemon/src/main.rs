@@ -1,10 +1,13 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use seatshell_common::{SessionInfo, SessionState, UserInfo};
 use seatshell_config::load_config;
 use seatshell_protocol::{ADMIN_BUS_NAME, ADMIN_OBJECT_PATH, admin};
 use std::fs;
 use tracing_subscriber::EnvFilter;
-use zbus::{connection::Builder, interface};
+use zbus::{
+    Connection, Proxy, connection::Builder, fdo::DBusProxy, interface, message::Header,
+    zvariant::OwnedObjectPath,
+};
 
 struct AdminService {
     allowed_group: String,
@@ -18,7 +21,13 @@ impl AdminService {
 
 #[interface(name = "org.seatshell.Admin")]
 impl AdminService {
-    async fn list_users(&self) -> zbus::fdo::Result<Vec<(u32, String, String, bool)>> {
+    async fn list_users(
+        &self,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<Vec<(u32, String, String, bool)>> {
+        authorize_same_uid(connection, &header).await?;
+
         Ok(list_users(&self.allowed_group)
             .into_iter()
             .map(|user| {
@@ -34,8 +43,13 @@ impl AdminService {
 
     async fn list_sessions(
         &self,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
     ) -> zbus::fdo::Result<Vec<(String, u32, String, String, String, bool)>> {
-        Ok(list_sessions()
+        authorize_same_uid(connection, &header).await?;
+
+        Ok(discover_sessions()
+            .await
             .into_iter()
             .map(|session| {
                 (
@@ -84,7 +98,7 @@ async fn main() -> Result<()> {
             "detected users: {}",
             list_users(&config.admin.allowed_group).len()
         );
-        println!("detected sessions: {}", list_sessions().len());
+        println!("detected sessions: {}", discover_sessions().await.len());
         return Ok(());
     }
 
@@ -172,7 +186,7 @@ fn user_in_group(username: &str, group: &str) -> bool {
 }
 
 fn current_user(admin_group: &str) -> UserInfo {
-    let uid = unsafe { libc::getuid() };
+    let uid = current_uid();
     let username = std::env::var("USER").unwrap_or_else(|_| "unknown".into());
 
     UserInfo {
@@ -183,7 +197,83 @@ fn current_user(admin_group: &str) -> UserInfo {
     }
 }
 
-fn list_sessions() -> Vec<SessionInfo> {
+async fn discover_sessions() -> Vec<SessionInfo> {
+    match logind_sessions().await {
+        Ok(sessions) if !sessions.is_empty() => sessions,
+        Ok(_) => {
+            tracing::warn!("logind returned no sessions, using local session fallback");
+            local_sessions()
+        }
+        Err(err) => {
+            tracing::debug!(error = %err, "could not load sessions from logind");
+            local_sessions()
+        }
+    }
+}
+
+async fn logind_sessions() -> Result<Vec<SessionInfo>> {
+    let connection = Connection::system()
+        .await
+        .context("failed to connect to the system bus")?;
+    let manager = Proxy::new(
+        &connection,
+        "org.freedesktop.login1",
+        "/org/freedesktop/login1",
+        "org.freedesktop.login1.Manager",
+    )
+    .await
+    .context("failed to create logind manager proxy")?;
+
+    let sessions = manager
+        .call::<_, _, Vec<(String, u32, String, String, OwnedObjectPath)>>("ListSessions", &())
+        .await
+        .context("failed to list logind sessions")?;
+
+    let mut discovered = Vec::with_capacity(sessions.len());
+    for row in sessions {
+        match logind_session_info(&connection, row).await {
+            Ok(session) => discovered.push(session),
+            Err(err) => tracing::warn!(error = %err, "could not load logind session details"),
+        }
+    }
+
+    Ok(discovered)
+}
+
+async fn logind_session_info(
+    connection: &Connection,
+    (id, uid, username, seat, path): (String, u32, String, String, OwnedObjectPath),
+) -> Result<SessionInfo> {
+    let session = Proxy::new(
+        connection,
+        "org.freedesktop.login1",
+        path,
+        "org.freedesktop.login1.Session",
+    )
+    .await
+    .context("failed to create logind session proxy")?;
+
+    let state = session
+        .get_property::<String>("State")
+        .await
+        .map(|state| session_state_from_logind(&state))
+        .unwrap_or(SessionState::Unknown);
+    let locked = session
+        .get_property::<bool>("LockedHint")
+        .await
+        .unwrap_or(false);
+
+    Ok(SessionInfo {
+        id,
+        uid,
+        username,
+        seat,
+        state,
+        locked,
+    })
+}
+
+fn local_sessions() -> Vec<SessionInfo> {
     let user = current_user("wheel");
     let session_id = std::env::var("XDG_SESSION_ID")
         .or_else(|_| std::env::var("TERM_SESSION_ID"))
@@ -200,6 +290,16 @@ fn list_sessions() -> Vec<SessionInfo> {
     }]
 }
 
+fn session_state_from_logind(state: &str) -> SessionState {
+    match state {
+        "active" => SessionState::Active,
+        "online" => SessionState::Online,
+        "closing" => SessionState::Closing,
+        "inactive" => SessionState::Inactive,
+        _ => SessionState::Unknown,
+    }
+}
+
 fn session_state_name(state: &SessionState) -> &'static str {
     match state {
         SessionState::Active => "active",
@@ -208,6 +308,35 @@ fn session_state_name(state: &SessionState) -> &'static str {
         SessionState::Inactive => "inactive",
         SessionState::Unknown => "unknown",
     }
+}
+
+async fn authorize_same_uid(connection: &Connection, header: &Header<'_>) -> zbus::fdo::Result<()> {
+    let sender = header
+        .sender()
+        .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+    let proxy = DBusProxy::new(connection).await.map_err(|err| {
+        zbus::fdo::Error::Failed(format!("failed to create D-Bus daemon proxy: {err}"))
+    })?;
+    let caller_uid = proxy
+        .get_connection_unix_user(sender.clone().into())
+        .await
+        .map_err(|err| {
+            zbus::fdo::Error::AccessDenied(format!("could not verify caller identity: {err}"))
+        })?;
+    let service_uid = current_uid();
+
+    if caller_uid == service_uid {
+        Ok(())
+    } else {
+        tracing::warn!(caller_uid, service_uid, "rejected D-Bus caller");
+        Err(zbus::fdo::Error::AccessDenied(format!(
+            "caller uid {caller_uid} is not allowed to access SeatShell admin uid {service_uid}"
+        )))
+    }
+}
+
+fn current_uid() -> u32 {
+    unsafe { libc::getuid() }
 }
 
 #[cfg(test)]
@@ -234,11 +363,23 @@ mod tests {
 
     #[test]
     fn list_sessions_has_current_user_session() {
-        let sessions = list_sessions();
+        let sessions = local_sessions();
 
         assert_eq!(sessions.len(), 1);
         assert!(!sessions[0].username.is_empty());
         assert!(!sessions[0].id.is_empty());
         assert_eq!(sessions[0].state, SessionState::Active);
+    }
+
+    #[test]
+    fn maps_logind_session_states() {
+        assert_eq!(session_state_from_logind("active"), SessionState::Active);
+        assert_eq!(session_state_from_logind("online"), SessionState::Online);
+        assert_eq!(session_state_from_logind("closing"), SessionState::Closing);
+        assert_eq!(
+            session_state_from_logind("inactive"),
+            SessionState::Inactive
+        );
+        assert_eq!(session_state_from_logind("weird"), SessionState::Unknown);
     }
 }

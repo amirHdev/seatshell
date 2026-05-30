@@ -4021,7 +4021,7 @@ dependencies = [
 
 [[package]]
 name = "seatshell-admin-daemon"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "libc",
@@ -4036,7 +4036,7 @@ dependencies = [
 
 [[package]]
 name = "seatshell-common"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -4044,24 +4044,25 @@ dependencies = [
 
 [[package]]
 name = "seatshell-config"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "seatshell-common",
+ "serde",
  "toml 0.8.23",
  "tracing",
 ]
 
 [[package]]
 name = "seatshell-notifications"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "seatshell-protocol"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "seatshell-common",
  "serde",
@@ -4070,7 +4071,7 @@ dependencies = [
 
 [[package]]
 name = "seatshell-session"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "libc",
@@ -4084,7 +4085,7 @@ dependencies = [
 
 [[package]]
 name = "seatshell-shell"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4106,7 +4107,7 @@ dependencies = [
 
 [[package]]
 name = "seatshell-user-agent"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "libc",

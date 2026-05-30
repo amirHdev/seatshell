@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust workspace
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libfontconfig1-dev \
+            dbus-x11 \
+            libglib2.0-bin \
+            libwayland-dev \
+            libx11-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Dry-run entrypoints
+        run: |
+          cargo run -q -p seatshell-session -- --dry-run
+          cargo run -q -p seatshell-session -- --dev-dry-run
+          cargo run -q -p seatshell-user-agent -- --dry-run
+          cargo run -q -p seatshell-admin-daemon -- --dry-run
+
+      - name: D-Bus smoke test
+        run: |
+          cargo build -p seatshell-admin-daemon -p seatshell-user-agent
+          scripts/smoke-dbus.sh

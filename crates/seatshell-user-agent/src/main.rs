@@ -3,7 +3,7 @@ use seatshell_protocol::{USER_AGENT_BUS_NAME_PREFIX, USER_AGENT_OBJECT_PATH, use
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing_subscriber::EnvFilter;
-use zbus::{connection::Builder, interface};
+use zbus::{Connection, connection::Builder, fdo::DBusProxy, interface, message::Header};
 
 struct UserAgent {
     username: String,
@@ -13,7 +13,7 @@ struct UserAgent {
 impl UserAgent {
     fn new() -> Self {
         let username = std::env::var("USER").unwrap_or_else(|_| "unknown".into());
-        let uid = unsafe { libc::getuid() };
+        let uid = current_uid();
 
         Self { username, uid }
     }
@@ -21,7 +21,14 @@ impl UserAgent {
 
 #[interface(name = "org.seatshell.UserAgent")]
 impl UserAgent {
-    async fn launch_command(&self, command: Vec<String>) -> zbus::fdo::Result<()> {
+    async fn launch_command(
+        &self,
+        command: Vec<String>,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        self.authorize_caller(connection, &header).await?;
+
         let Some((program, args)) = command.split_first() else {
             return Err(zbus::fdo::Error::InvalidArgs(
                 "command cannot be empty".into(),
@@ -41,7 +48,14 @@ impl UserAgent {
         Ok(())
     }
 
-    async fn launch_desktop_file(&self, desktop_file_id: String) -> zbus::fdo::Result<()> {
+    async fn launch_desktop_file(
+        &self,
+        desktop_file_id: String,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        self.authorize_caller(connection, &header).await?;
+
         if desktop_file_id.trim().is_empty() {
             return Err(zbus::fdo::Error::InvalidArgs(
                 "desktop file id cannot be empty".into(),
@@ -67,7 +81,11 @@ impl UserAgent {
 
     async fn get_session_info(
         &self,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
     ) -> zbus::fdo::Result<(String, u32, String, String, String, bool)> {
+        self.authorize_caller(connection, &header).await?;
+
         let session_id = std::env::var("XDG_SESSION_ID").unwrap_or_else(|_| "unknown".into());
         let seat = std::env::var("XDG_SEAT").unwrap_or_else(|_| "seat0".into());
 
@@ -110,13 +128,48 @@ impl UserAgent {
     }
 }
 
+impl UserAgent {
+    async fn authorize_caller(
+        &self,
+        connection: &Connection,
+        header: &Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let sender = header
+            .sender()
+            .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
+        let proxy = DBusProxy::new(connection).await.map_err(|err| {
+            zbus::fdo::Error::Failed(format!("failed to create D-Bus daemon proxy: {err}"))
+        })?;
+        let caller_uid = proxy
+            .get_connection_unix_user(sender.clone().into())
+            .await
+            .map_err(|err| {
+                zbus::fdo::Error::AccessDenied(format!("could not verify caller identity: {err}"))
+            })?;
+
+        if caller_uid == self.uid {
+            Ok(())
+        } else {
+            tracing::warn!(
+                caller_uid,
+                service_uid = self.uid,
+                "rejected user-agent D-Bus caller"
+            );
+            Err(zbus::fdo::Error::AccessDenied(format!(
+                "caller uid {caller_uid} is not allowed to access user-agent uid {}",
+                self.uid
+            )))
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    let uid = unsafe { libc::getuid() };
+    let uid = current_uid();
     let bus_name = format!("{USER_AGENT_BUS_NAME_PREFIX}.u{uid}");
 
     if std::env::args().any(|arg| arg == "--dry-run") {
@@ -148,4 +201,8 @@ async fn main() -> Result<()> {
 
     tokio::signal::ctrl_c().await?;
     Ok(())
+}
+
+fn current_uid() -> u32 {
+    unsafe { libc::getuid() }
 }
