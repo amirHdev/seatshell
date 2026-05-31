@@ -1622,7 +1622,7 @@ fn recent_files(limit: usize) -> Vec<RecentFileEntry> {
         .flat_map(|root| files_in_dir(root))
         .collect::<Vec<_>>();
 
-    entries.sort_by(|left, right| right.0.cmp(&left.0));
+    entries.sort_by_key(|right| std::cmp::Reverse(right.0));
     entries.truncate(limit);
 
     entries
