@@ -22,7 +22,7 @@ The shell aims for calm focus with visible authorship:
 
 ## Surface rules
 
-- The desktop hero should state the shell's point of view, not just list controls.
+- The desktop should preserve wallpaper space and keep persistent widgets compact.
 - The launcher should feel curated and searchable, not like a raw app dump.
 - The overview should communicate state before action.
 - Notifications should read like a calm activity log.

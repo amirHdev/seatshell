@@ -76,14 +76,14 @@ export component Launcher inherits Rectangle {
                     horizontal-stretch: 1;
 
                     Text {
-                        text: "Application constellation";
+                        text: "Applications";
                         color: ShellTheme.text-primary;
                         font-size: 20px;
                         font-weight: 800;
                     }
 
                     Text {
-                        text: "Search, launch, and keep your closest tools in a shelf that feels curated rather than crowded.";
+                        text: "Find and open installed applications.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
@@ -96,7 +96,7 @@ export component Launcher inherits Rectangle {
 
                 ShellAction {
                     label: "Close";
-                    icon-text: "X";
+                    icon-name: "close";
                     compact: true;
                     clicked => {
                         root.close();
@@ -108,14 +108,14 @@ export component Launcher inherits Rectangle {
                 spacing: 8px;
 
                 Text {
-                    text: "Application constellation";
+                    text: "Applications";
                     color: ShellTheme.text-primary;
                     font-size: 18px;
                     font-weight: 800;
                 }
 
                 Text {
-                    text: "Search, launch, and keep your closest tools in a shelf that feels curated rather than crowded.";
+                    text: "Find and open installed applications.";
                     color: ShellTheme.text-secondary;
                     font-size: 11px;
                     wrap: word-wrap;
@@ -131,7 +131,7 @@ export component Launcher inherits Rectangle {
 
                     ShellAction {
                         label: "Close";
-                        icon-text: "X";
+                        icon-name: "close";
                         compact: true;
                         clicked => {
                             root.close();
@@ -151,7 +151,7 @@ export component Launcher inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: root.query == "" ? "Start with a name, category, or command hint." : "Refine the field, then press Enter to launch the selected app.";
+                        text: root.query == "" ? "Type to search installed applications." : "Press Enter to open the selected application.";
                         color: ShellTheme.text-secondary;
                         font-size: 11px;
                     }
@@ -204,24 +204,21 @@ export component Launcher inherits Rectangle {
                             spacing: 14px;
 
                             Rectangle {
-                                background: ShellTheme.background-elevated;
-                                border-radius: ShellTheme.radius-lg * 1px;
-                                border-width: 1px;
-                                border-color: ShellTheme.outline;
+                                background: transparent;
 
                                 VerticalLayout {
-                                    padding: 12px;
+                                    padding-bottom: 4px;
                                     spacing: 8px;
 
                                     Text {
-                                        text: "Intent";
+                                        text: "Quick access";
                                         color: ShellTheme.text-primary;
                                         font-size: 14px;
                                         font-weight: 800;
                                     }
 
                                     Text {
-                                        text: "The launcher should feel like a composed shelf: a few trusted anchors, a quick search path, and no visual panic.";
+                                        text: "Pinned and recently used applications.";
                                         color: ShellTheme.text-secondary;
                                         font-size: 11px;
                                         wrap: word-wrap;
@@ -314,7 +311,7 @@ export component Launcher inherits Rectangle {
                         }
 
                         Text {
-                            text: root.query == "" ? "Browse the full field or start typing to narrow the constellation." : "The selected row responds to Enter, and the pin toggle keeps important tools nearby.";
+                            text: root.query == "" ? "Browse installed applications or start typing to search." : "Press Enter to open the selected application.";
                             color: ShellTheme.text-secondary;
                             font-size: 11px;
                         }
@@ -403,7 +400,7 @@ export component Launcher inherits Rectangle {
                             }
 
                             Text {
-                                text: "Keep favorites close and use the search box when the list gets crowded.";
+                                text: "Pinned and recently used applications.";
                                 color: ShellTheme.text-secondary;
                                 font-size: 11px;
                                 wrap: word-wrap;

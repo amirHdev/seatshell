@@ -1,7 +1,6 @@
 import { LauncherApp } from "launcher.slint";
 import { ShellTheme } from "shell-theme.slint";
-import { ShellAction, ShellPill } from "shell-widgets.slint";
-import { ScrollView } from "std-widgets.slint";
+import { ShellIcon, ShellPill } from "shell-widgets.slint";
 
 export struct DesktopFile {
     path: string,
@@ -9,79 +8,136 @@ export struct DesktopFile {
     detail: string,
 }
 
+export struct DesktopShortcutEntry {
+    id: string,
+    name: string,
+    icon_text: string,
+    icon: image,
+    active: bool,
+    x: int,
+    y: int,
+}
+
 component DesktopShortcut inherits Rectangle {
+    in property <string> app-id;
     in property <string> label;
     in property <string> icon-text;
     in property <image> icon;
     in property <bool> active: false;
-    callback clicked();
+    in property <bool> draggable: false;
+    in property <bool> compact: false;
+    in property <int> max-x: 9999;
+    in property <int> max-y: 9999;
 
-    width: 88px;
-    height: 102px;
-    background: touch.has-hover ? #162031aa : transparent;
-    border-radius: ShellTheme.radius-lg * 1px;
-    border-width: touch.has-hover ? 1px : 0px;
-    border-color: touch.has-hover ? ShellTheme.outline-strong : transparent;
+    in-out property <length> drag-offset-x: 0px;
+    in-out property <length> drag-offset-y: 0px;
+
+    callback activated();
+    callback moved(string, int, int);
+
+    width: root.compact ? 92px : 108px;
+    height: root.compact ? 96px : 112px;
+    background: touch.has-hover || root.active ? #101823aa : transparent;
+    border-radius: 14px;
+    border-width: touch.has-hover || root.active ? 1px : 0px;
+    border-color: root.active ? ShellTheme.accent : #ffffff22;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
 
     touch := TouchArea {
+        mouse-cursor: root.draggable ? (self.pressed ? grabbing : grab) : default;
+
+        moved => {
+            if root.draggable && self.pressed {
+                root.drag-offset-x = self.mouse-x - self.pressed-x;
+                root.drag-offset-y = self.mouse-y - self.pressed-y;
+            }
+        }
+
+        pointer-event(event) => {
+            if !root.draggable || event.button != PointerEventButton.left {
+                return;
+            }
+
+            if event.kind == PointerEventKind.up {
+                if root.drag-offset-x > 6px || root.drag-offset-x < -6px || root.drag-offset-y > 6px || root.drag-offset-y < -6px {
+                    root.moved(
+                        root.app-id,
+                        min(max((root.x / 1px), 0), root.max-x),
+                        min(max((root.y / 1px), 0), root.max-y)
+                    );
+                } else {
+                    root.activated();
+                }
+
+                root.drag-offset-x = 0px;
+                root.drag-offset-y = 0px;
+            }
+        }
+
         clicked => {
-            root.clicked();
+            if !root.draggable {
+                root.activated();
+            }
         }
     }
 
-    VerticalLayout {
-        padding: 8px;
-        spacing: 8px;
-        alignment: center;
+    Rectangle {
+        width: root.compact ? 48px : 54px;
+        height: root.compact ? 48px : 54px;
+        x: (parent.width - self.width) / 2;
+        y: root.compact ? 8px : 10px;
+        border-radius: 14px;
+        background: root.active ? #33271ed9 : #101823d9;
+        border-width: 1px;
+        border-color: root.active ? ShellTheme.accent : #ffffff28;
 
-        Rectangle {
-            width: 46px;
-            height: 46px;
-            border-radius: 999px;
-            background: root.active ? ShellTheme.accent : ShellTheme.surface-muted;
-            border-width: 1px;
-            border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
-
-            if root.icon.width > 0 && root.icon.height > 0: Image {
-                source: root.icon;
-                width: 24px;
-                height: 24px;
-                x: 11px;
-                y: 11px;
-            }
-
-            if root.icon.width == 0 || root.icon.height == 0: Text {
-                text: root.icon-text;
-                color: root.active ? #1a120d : ShellTheme.text-primary;
-                font-size: 12px;
-                font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
+        if root.icon.width > 0 && root.icon.height > 0: Image {
+            source: root.icon;
+            width: root.compact ? 28px : 32px;
+            height: root.compact ? 28px : 32px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
         }
 
-        Text {
-            text: root.label;
-            color: ShellTheme.text-primary;
-            font-size: 11px;
-            font-weight: 700;
+        if root.icon.width == 0 || root.icon.height == 0: Text {
+            text: root.icon-text;
+            color: root.active ? ShellTheme.text-accent : ShellTheme.text-primary;
+            font-size: root.compact ? 11px : 13px;
+            font-weight: 800;
             horizontal-alignment: center;
-            wrap: word-wrap;
+            vertical-alignment: center;
         }
+    }
+
+    Text {
+        text: root.label;
+        x: 4px;
+        y: root.compact ? 62px : 70px;
+        width: parent.width - 8px;
+        height: root.compact ? 28px : 34px;
+        color: ShellTheme.text-primary;
+        font-size: root.compact ? 10px : 11px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: top;
+        wrap: word-wrap;
+        overflow: elide;
     }
 }
 
-component WindowGhost inherits Rectangle {
-    in property <string> title;
+component RecentFileRow inherits Rectangle {
+    in property <string> name;
     in property <string> detail;
-    in property <string> icon-text;
-    in property <image> icon;
+
     callback clicked();
 
-    background: #121b28b0;
-    border-radius: ShellTheme.radius-xl * 1px;
-    border-width: 1px;
-    border-color: touch.has-hover ? ShellTheme.accent : #30415688;
+    height: 38px;
+    background: touch.has-hover ? #ffffff0f : transparent;
+    border-radius: 9px;
+
+    animate background { duration: 120ms; }
 
     touch := TouchArea {
         clicked => {
@@ -89,67 +145,50 @@ component WindowGhost inherits Rectangle {
         }
     }
 
-    VerticalLayout {
-        padding: 14px;
-        spacing: 12px;
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 6px;
+        spacing: 9px;
+        alignment: center;
 
-        HorizontalLayout {
-            spacing: 10px;
-            alignment: center;
+        Rectangle {
+            width: 24px;
+            height: 24px;
+            background: #ffffff10;
+            border-radius: 7px;
+            border-width: 1px;
+            border-color: #ffffff22;
 
-            Rectangle {
-                width: 34px;
-                height: 34px;
-                border-radius: 999px;
-                background: ShellTheme.surface-muted;
-                border-width: 1px;
-                border-color: ShellTheme.outline;
-
-                if root.icon.width > 0 && root.icon.height > 0: Image {
-                    source: root.icon;
-                    width: 18px;
-                    height: 18px;
-                    x: 8px;
-                    y: 8px;
-                }
-
-                if root.icon.width == 0 || root.icon.height == 0: Text {
-                    text: root.icon-text;
-                    color: ShellTheme.text-primary;
-                    font-size: 10px;
-                    font-weight: 800;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
-
-            VerticalLayout {
-                spacing: 2px;
-                horizontal-stretch: 1;
-
-                Text {
-                    text: root.title;
-                    color: ShellTheme.text-primary;
-                    font-size: 15px;
-                    font-weight: 800;
-                    overflow: elide;
-                }
-
-                Text {
-                    text: root.detail;
-                    color: ShellTheme.text-secondary;
-                    font-size: 10px;
-                    overflow: elide;
-                }
+            ShellIcon {
+                x: 6px;
+                y: 6px;
+                width: 12px;
+                height: 12px;
+                name: "file";
+                icon-color: ShellTheme.text-secondary;
             }
         }
 
-        Rectangle {
-            vertical-stretch: 1;
-            background: #0d152088;
-            border-radius: ShellTheme.radius-lg * 1px;
-            border-width: 1px;
-            border-color: #25344766;
+        VerticalLayout {
+            spacing: 0px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.name;
+                color: ShellTheme.text-primary;
+                font-size: 10px;
+                font-weight: 700;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+
+            Text {
+                text: root.detail;
+                color: ShellTheme.text-muted;
+                font-size: 9px;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
         }
     }
 }
@@ -166,319 +205,183 @@ export component Desktop inherits Rectangle {
     in property <[LauncherApp]> recent-apps;
     in property <[LauncherApp]> active-apps;
     in property <[DesktopFile]> recent-files;
+    in property <[DesktopShortcutEntry]> desktop-shortcuts;
     in property <string> user-name;
     in property <string> theme-name;
-    in property <string> wallpaper-path;
+    in property <image> wallpaper-image;
     in property <int> app-count;
     in property <int> session-count;
     in property <int> notification-count;
     in property <bool> overview-enabled: true;
-    in property <bool> split-layout: root.width >= 1120px;
-    in property <bool> compact: root.width < 820px;
+
+    in property <bool> phone: root.width < 560px;
+    in property <bool> tablet: root.width >= 560px && root.width < 900px;
+    in property <bool> desktop: root.width >= 900px;
+    in property <bool> wide: root.width >= 1180px;
+    in property <bool> compact: root.width < 700px;
 
     callback show-launcher();
     callback show-command-surface();
     callback show-overview();
     callback launch-app(string);
     callback open-file(string);
+    callback move-desktop-shortcut(string, int, int);
 
     background: ShellTheme.background;
 
+    if root.wallpaper-image.width > 0 && root.wallpaper-image.height > 0: Image {
+        source: root.wallpaper-image;
+        width: parent.width;
+        height: parent.height;
+        image-fit: cover;
+    }
+
     Rectangle {
-        x: -160px;
-        y: -140px;
-        width: 440px;
-        height: 440px;
+        width: parent.width;
+        height: parent.height;
+        background: root.phone ? #03070c66 : #03070c36;
+    }
+
+    Rectangle {
+        x: root.phone ? -220px : -160px;
+        y: root.phone ? -220px : -180px;
+        width: root.phone ? 420px : 460px;
+        height: root.phone ? 420px : 460px;
         background: ShellTheme.ambient-primary;
         border-radius: 999px;
-        opacity: 0.16;
+        opacity: root.phone ? 0.10 : 0.14;
     }
 
     Rectangle {
-        x: root.width - 300px;
-        y: 18px;
-        width: 340px;
-        height: 340px;
+        x: root.width - (root.phone ? 260px : 320px);
+        y: root.height - (root.phone ? 240px : 280px);
+        width: root.phone ? 340px : 420px;
+        height: root.phone ? 340px : 420px;
         background: ShellTheme.ambient-secondary;
         border-radius: 999px;
-        opacity: 0.12;
+        opacity: 0.10;
     }
 
     Rectangle {
-        x: root.width * 0.33;
-        y: root.height - 300px;
-        width: 380px;
-        height: 380px;
-        background: ShellTheme.ambient-tertiary;
-        border-radius: 999px;
-        opacity: 0.08;
+        x: root.desktop ? 28px : 12px;
+        y: root.desktop ? 28px : (root.phone ? 142px : 292px);
+        width: root.desktop
+            ? root.wide ? 276px : 236px
+            : parent.width - 24px;
+        height: root.desktop
+            ? parent.height - 56px
+            : parent.height - self.y - 12px;
+        background: transparent;
+        clip: true;
+
+        for shortcut in root.desktop-shortcuts: DesktopShortcut {
+            app-id: shortcut.id;
+            max-x: max(0, ((parent.width - self.width) / 1px));
+            max-y: max(0, ((parent.height - self.height) / 1px));
+            x: min(shortcut.x, self.max-x) * 1px + self.drag-offset-x;
+            y: min(shortcut.y, self.max-y) * 1px + self.drag-offset-y;
+            label: shortcut.name;
+            icon-text: shortcut.icon_text;
+            icon: shortcut.icon;
+            active: shortcut.active;
+            draggable: root.desktop;
+            compact: root.compact;
+
+            moved(app-id, x, y) => {
+                root.move-desktop-shortcut(app-id, x, y);
+            }
+
+            activated => {
+                root.launch-app(shortcut.id);
+            }
+        }
     }
 
     Rectangle {
-        x: 18px;
-        y: 14px;
-        width: root.width - 36px;
-        height: 34px;
-        background: #131c286e;
-        border-radius: 999px;
+        x: root.desktop ? parent.width - (root.wide ? 346px : 322px) : 12px;
+        y: root.desktop ? 32px : 12px;
+        width: root.desktop ? (root.wide ? 316px : 292px) : parent.width - 24px;
+        height: root.phone ? 118px : 132px;
+        background: #0b1420aa;
+        border-radius: root.phone ? 18px : 20px;
         border-width: 1px;
-        border-color: #31435a4a;
+        border-color: #ffffff22;
 
-        HorizontalLayout {
-            padding-left: 12px;
-            padding-right: 12px;
-            spacing: 8px;
-            alignment: center;
-
-            Rectangle {
-                width: 20px;
-                height: 20px;
-                background: ShellTheme.accent;
-                border-radius: 999px;
-                border-width: 1px;
-                border-color: ShellTheme.accent;
-
-                Text {
-                    text: "S";
-                    color: #1a120d;
-                    font-size: 10px;
-                    font-weight: 800;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
-                }
-            }
+        VerticalLayout {
+            padding: root.phone ? 12px : 16px;
+            spacing: root.phone ? 6px : 7px;
 
             Text {
-                text: "SeatShell";
+                text: root.clock-text;
                 color: ShellTheme.text-primary;
-                font-size: 11px;
+                font-size: root.phone ? 22px : 28px;
                 font-weight: 800;
-            }
-
-            Text {
-                text: root.user-name;
-                color: ShellTheme.text-secondary;
-                font-size: 10px;
-                horizontal-stretch: 1;
                 overflow: elide;
             }
 
-            ShellPill {
-                label: root.theme-name;
-                tone: ShellTheme.surface-accent;
-                compact: true;
-            }
-
-            ShellPill {
-                label: root.clock-text;
-                tone: ShellTheme.surface-glow;
-                compact: true;
-            }
-        }
-    }
-
-    if root.split-layout: Rectangle {
-        x: 0px;
-        y: 56px;
-        width: root.width;
-        height: root.height - 118px;
-        background: transparent;
-
-        if root.featured-apps.length > 0: DesktopShortcut {
-            x: 28px;
-            y: 28px;
-            label: root.featured-apps[0].name;
-            icon-text: root.featured-apps[0].icon_text;
-            icon: root.featured-apps[0].icon;
-            active: root.featured-apps[0].running_count > 0;
-            clicked => { root.launch-app(root.featured-apps[0].id); }
-        }
-
-        if root.featured-apps.length > 1: DesktopShortcut {
-            x: 28px;
-            y: 142px;
-            label: root.featured-apps[1].name;
-            icon-text: root.featured-apps[1].icon_text;
-            icon: root.featured-apps[1].icon;
-            active: root.featured-apps[1].running_count > 0;
-            clicked => { root.launch-app(root.featured-apps[1].id); }
-        }
-
-        if root.featured-apps.length > 2: DesktopShortcut {
-            x: 28px;
-            y: 256px;
-            label: root.featured-apps[2].name;
-            icon-text: root.featured-apps[2].icon_text;
-            icon: root.featured-apps[2].icon;
-            active: root.featured-apps[2].running_count > 0;
-            clicked => { root.launch-app(root.featured-apps[2].id); }
-        }
-        Rectangle {
-            x: root.width / 2 - 220px;
-            y: 126px;
-            width: 440px;
-            height: 220px;
-            background: #121b28a8;
-            border-radius: ShellTheme.radius-xl * 1px;
-            border-width: 1px;
-            border-color: #30415688;
-
-            if root.active-apps.length == 0: VerticalLayout {
-                padding: 20px;
-                spacing: 12px;
-
-                Text {
-                    text: "Workspace ready";
-                    color: ShellTheme.text-primary;
-                    font-size: 22px;
-                    font-weight: 800;
-                }
-
-                Text {
-                    text: "A quiet desktop with room to begin.";
-                    color: ShellTheme.text-secondary;
-                    font-size: 11px;
-                }
-
-                Rectangle {
-                    vertical-stretch: 1;
-                    background: #0d152088;
-                    border-radius: ShellTheme.radius-lg * 1px;
-                    border-width: 1px;
-                    border-color: #25344766;
-
-                    VerticalLayout {
-                        padding: 16px;
-                        spacing: 10px;
-
-                        Text {
-                            text: "Launch something and active windows will settle here.";
-                            color: ShellTheme.text-primary;
-                            font-size: 15px;
-                            font-weight: 700;
-                            wrap: word-wrap;
-                        }
-
-                        Text {
-                            text: "Use the launcher for browsing and the surface for quick shell actions.";
-                            color: ShellTheme.text-secondary;
-                            font-size: 11px;
-                            wrap: word-wrap;
-                        }
-
-                        Rectangle { vertical-stretch: 1; background: transparent; }
-
-                        HorizontalLayout {
-                            spacing: 8px;
-
-                            ShellAction {
-                                label: "Launcher";
-                                icon-text: "A";
-                                compact: true;
-                                clicked => {
-                                    root.show-launcher();
-                                }
-                            }
-
-                            ShellAction {
-                                label: "Surface";
-                                icon-text: "C";
-                                compact: true;
-                                clicked => {
-                                    root.show-command-surface();
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if root.active-apps.length > 0: WindowGhost {
-                x: 16px;
-                y: 16px;
-                width: parent.width - 32px;
-                height: parent.height - 32px;
-                title: root.active-apps[0].name;
-                detail: root.active-apps[0].detail;
-                icon-text: root.active-apps[0].icon_text;
-                icon: root.active-apps[0].icon;
-                clicked => {
-                    root.launch-app(root.active-apps[0].id);
-                }
-            }
-        }
-
-        if root.active-apps.length > 1: WindowGhost {
-            x: root.width / 2 + 128px;
-            y: 304px;
-            width: 220px;
-            height: 118px;
-            title: root.active-apps[1].name;
-            detail: root.active-apps[1].detail;
-            icon-text: root.active-apps[1].icon_text;
-            icon: root.active-apps[1].icon;
-            clicked => {
-                root.launch-app(root.active-apps[1].id);
-            }
-        }
-    }
-
-    if !root.split-layout: ScrollView {
-        x: 12px;
-        y: 56px;
-        width: root.width - 24px;
-        height: root.height - 118px;
-        viewport-width: self.width;
-
-        VerticalLayout {
-            spacing: 12px;
-
-            Rectangle {
-                background: transparent;
-                height: 116px;
-
-                if root.active-apps.length == 0: Text {
-                    text: "Desktop is quiet.";
-                    color: ShellTheme.text-primary;
-                    font-size: 18px;
-                    font-weight: 800;
-                    horizontal-alignment: center;
-                    width: parent.width;
-                    y: 18px;
-                }
-
-                if root.active-apps.length == 0: Text {
-                    text: "Launch something and active windows will settle here.";
-                    color: ShellTheme.text-secondary;
-                    font-size: 11px;
-                    horizontal-alignment: center;
-                    width: parent.width;
-                    y: 48px;
-                }
+            Text {
+                text: root.user-name + "  •  " + root.status-text;
+                color: ShellTheme.text-secondary;
+                font-size: 11px;
+                overflow: elide;
             }
 
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 7px;
 
-                for app in root.featured-apps: DesktopShortcut {
-                    label: app.name;
-                    icon-text: app.icon_text;
-                    icon: app.icon;
-                    active: app.running_count > 0;
-                    clicked => {
-                        root.launch-app(app.id);
-                    }
+                ShellPill {
+                    label: root.network-text;
+                    tone: #ffffff10;
+                    compact: true;
+                    tiny: root.phone;
+                }
+
+                ShellPill {
+                    label: root.audio-text;
+                    tone: #ffffff10;
+                    compact: true;
+                    tiny: root.phone;
                 }
             }
 
-            for app in root.active-apps: WindowGhost {
-                height: 158px;
-                title: app.name;
-                detail: app.detail;
-                icon-text: app.icon_text;
-                icon: app.icon;
+            Text {
+                text: root.notification-count > 0
+                    ? root.notification-count + " notifications waiting"
+                    : root.power-text;
+                color: ShellTheme.text-muted;
+                font-size: 10px;
+                wrap: word-wrap;
+            }
+        }
+    }
+
+    if !root.phone && root.recent-files.length > 0: Rectangle {
+        x: root.desktop ? parent.width - (root.wide ? 346px : 322px) : 12px;
+        y: root.desktop ? 184px : 156px;
+        width: root.desktop ? (root.wide ? 316px : 292px) : parent.width - 24px;
+        height: min(root.desktop ? 174px : 124px, 42px + root.recent-files.length * 42px);
+        background: #0b1420aa;
+        border-radius: 20px;
+        border-width: 1px;
+        border-color: #ffffff22;
+
+        VerticalLayout {
+            padding: 12px;
+            spacing: 4px;
+
+            Text {
+                text: "Recent files";
+                color: ShellTheme.text-primary;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            for file in root.recent-files: RecentFileRow {
+                name: file.name;
+                detail: file.detail;
+
                 clicked => {
-                    root.launch-app(app.id);
+                    root.open-file(file.path);
                 }
             }
         }

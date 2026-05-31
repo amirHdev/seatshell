@@ -4,17 +4,18 @@ import { CommandSurface } from "command-surface.slint";
 import { Launcher, LauncherApp } from "launcher.slint";
 import { NotificationCenter, NotificationEntry } from "notification-center.slint";
 import { Overview, UserSession } from "overview.slint";
-import { DesktopFile } from "desktop.slint";
+import { DesktopFile, DesktopShortcutEntry } from "desktop.slint";
 import { ShellTheme } from "shell-theme.slint";
 
 export component AppWindow inherits Window {
-    in property <int> panel-height: 34;
+    in property <int> panel-height: root.width < 700px ? 68 : 60;
     in property <string> accent: "#4a90e2";
     in property <[LauncherApp]> launcher-apps;
     in property <[LauncherApp]> featured-apps;
     in property <[LauncherApp]> recent-apps;
     in property <[LauncherApp]> active-apps;
     in property <[DesktopFile]> recent-files;
+    in property <[DesktopShortcutEntry]> desktop-shortcuts;
     in property <[LauncherApp]> panel-apps;
     in property <[NotificationEntry]> notifications;
     in property <[UserSession]> user-sessions;
@@ -25,7 +26,7 @@ export component AppWindow inherits Window {
     in property <string> audio-text: "VOL ?";
     in property <string> user-name: "unknown";
     in property <string> theme-name: "dark";
-    in property <string> wallpaper-path;
+    in property <image> wallpaper-image;
     in property <string> launcher-query;
     in property <int> launcher-count;
     in property <int> app-count: 0;
@@ -53,6 +54,7 @@ export component AppWindow inherits Window {
     callback clear-notifications();
     callback dismiss-notification(int);
     callback open-file(string);
+    callback move-desktop-shortcut(string, int, int);
     callback launcher-search-changed(string);
     callback launcher-accept-search();
     callback move-launcher-selection(int);
@@ -176,9 +178,10 @@ export component AppWindow inherits Window {
                 recent-apps: root.recent-apps;
                 active-apps: root.active-apps;
                 recent-files: root.recent-files;
+                desktop-shortcuts: root.desktop-shortcuts;
                 user-name: root.user-name;
                 theme-name: root.theme-name;
-                wallpaper-path: root.wallpaper-path;
+                wallpaper-image: root.wallpaper-image;
                 app-count: root.app-count;
                 session-count: root.session-count;
                 notification-count: root.notification-count;
@@ -199,6 +202,9 @@ export component AppWindow inherits Window {
                 }
                 open-file(path) => {
                     root.open-file(path);
+                }
+                move-desktop-shortcut(app-id, x, y) => {
+                    root.move-desktop-shortcut(app-id, x, y);
                 }
             }
 

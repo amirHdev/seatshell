@@ -4,6 +4,24 @@ SeatShell is a Rust/Slint Wayland shell focused on a built-in SingleSeat Overvie
 
 Version 1.0.0 uses labwc as the compositor backend. The shell UI starts as normal Slint windows, while the service layer exposes D-Bus interfaces for user-agent launch requests and read-only admin discovery.
 
+## Project Overview
+
+SeatShell is not trying to beat GNOME or KDE at feature count. Its chance to become a memorable project is to be smaller, clearer, and more opinionated:
+
+- a recognizable desktop shell with strong visual authorship
+- a trustworthy local-session overview instead of a generic control center
+- a keyboard-friendly launcher and daily workflow
+- a session/runtime stack that is understandable to contributors
+
+The current architecture is a compact Rust workspace:
+
+- `seatshell-session` supervises the session lifecycle
+- `seatshell-shell` renders the UI in Slint
+- `seatshell-user-agent` launches apps in the user session
+- `seatshell-admin-daemon` exposes read-only session discovery
+
+For more detail, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Version 1.0.0
 
 This repository is at a first working release:
@@ -36,6 +54,14 @@ cargo run -p seatshell-user-agent
 cargo run -p seatshell-shell -- --windowed
 scripts/run-seatshell.sh --dry-run
 ```
+
+Contributor docs:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/TESTING.md](docs/TESTING.md)
+- [docs/DESIGN.md](docs/DESIGN.md)
+- [docs/SECURITY.md](docs/SECURITY.md)
 
 ## First Run
 

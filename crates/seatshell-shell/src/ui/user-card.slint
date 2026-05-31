@@ -1,5 +1,5 @@
 import { ShellTheme } from "shell-theme.slint";
-import { ShellPill } from "shell-widgets.slint";
+import { ShellIcon, ShellPill } from "shell-widgets.slint";
 
 export component UserCard inherits Rectangle {
     in property <string> username;
@@ -7,14 +7,27 @@ export component UserCard inherits Rectangle {
     in property <string> action;
     in property <string> accent: "#4a90e2";
     in property <bool> selected: false;
+    in property <bool> locked: false;
+    in property <bool> current: false;
 
     min-width: 280px;
     height: 96px;
-    background: root.selected ? ShellTheme.surface-accent : ShellTheme.surface;
+    background: root.selected
+        ? ShellTheme.surface-accent
+        : root.current
+            ? ShellTheme.surface-glow
+            : ShellTheme.surface;
     border-radius: ShellTheme.radius-lg * 1px;
     border-width: 1px;
-    border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
+    border-color: root.selected || root.current
+        ? ShellTheme.accent
+        : root.locked
+            ? ShellTheme.warning
+            : ShellTheme.outline;
     horizontal-stretch: 1;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
 
     HorizontalLayout {
         padding: ShellTheme.space-md * 1px;
@@ -24,18 +37,26 @@ export component UserCard inherits Rectangle {
         Rectangle {
             width: 44px;
             height: 44px;
-            background: root.selected ? ShellTheme.accent : ShellTheme.surface-muted;
+            background: root.selected || root.current
+                ? ShellTheme.accent
+                : root.locked
+                    ? ShellTheme.surface-accent
+                    : ShellTheme.surface-muted;
             border-radius: 999px;
             border-width: 1px;
-            border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
+            border-color: root.selected || root.current
+                ? ShellTheme.accent
+                : root.locked
+                    ? ShellTheme.warning
+                    : ShellTheme.outline;
 
-            Text {
-                text: "U";
-                color: root.selected ? #1a120d : ShellTheme.text-primary;
-                font-size: 14px;
-                font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            ShellIcon {
+                x: 12px;
+                y: 12px;
+                width: 20px;
+                height: 20px;
+                name: root.locked ? "lock" : "user";
+                icon-color: root.selected || root.current ? #1a120d : ShellTheme.text-primary;
             }
         }
 
@@ -58,8 +79,12 @@ export component UserCard inherits Rectangle {
             }
 
             ShellPill {
-                label: root.action;
-                tone: ShellTheme.surface-strong;
+                label: root.current ? "Current session" : root.locked ? "Locked session" : root.action;
+                tone: root.current
+                    ? ShellTheme.surface-glow
+                    : root.locked
+                        ? ShellTheme.surface-accent
+                        : ShellTheme.surface-strong;
                 compact: true;
                 min-width: 110px;
             }

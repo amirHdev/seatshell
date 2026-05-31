@@ -27,6 +27,8 @@ done
 grep -q "^Exec=$SESSION_LAUNCHER\$" "$SESSION_FILE" || fail "session Exec does not point to $SESSION_LAUNCHER"
 [ "$(sed -n 's/^TryExec=//p' "$SESSION_FILE" | head -n 1)" = "$SESSION_LAUNCHER" ] || fail "session TryExec does not point to $SESSION_LAUNCHER"
 [ -d "$SHARE_DIR/labwc" ] || fail "missing $SHARE_DIR/labwc"
+[ -f "$SHARE_DIR/labwc/rc.xml" ] || fail "missing $SHARE_DIR/labwc/rc.xml"
+[ -f "$SHARE_DIR/wallpapers/default.png" ] || fail "missing $SHARE_DIR/wallpapers/default.png"
 
 command -v labwc >/dev/null 2>&1 || fail "labwc is not installed"
 command -v dbus-run-session >/dev/null 2>&1 || fail "dbus-run-session is not installed"

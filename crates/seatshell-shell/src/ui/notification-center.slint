@@ -47,7 +47,7 @@ export component NotificationCenter inherits Rectangle {
                     }
 
                     Text {
-                        text: "A calmer log of movement, warnings, and system replies.";
+                        text: "Recent system activity";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
@@ -69,7 +69,7 @@ export component NotificationCenter inherits Rectangle {
 
                 ShellAction {
                     label: "";
-                    icon-text: "X";
+                    icon-name: "close";
                     compact: true;
                     clicked => {
                         root.close();
@@ -103,7 +103,7 @@ export component NotificationCenter inherits Rectangle {
                     }
 
                     Text {
-                        text: "When apps or shell services speak up, they land here in a cleaner visual queue.";
+                        text: "System and application notifications will appear here.";
                         color: ShellTheme.text-secondary;
                         font-size: 11px;
                         wrap: word-wrap;
@@ -163,7 +163,7 @@ export component NotificationCenter inherits Rectangle {
 
                                 ShellAction {
                                     label: "";
-                                    icon-text: "X";
+                                    icon-name: "close";
                                     compact: true;
                                     clicked => {
                                         root.dismiss-notification(notification.id);

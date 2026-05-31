@@ -33,6 +33,7 @@ Use that run to verify:
 - resizing the window does not produce clipped text, broken spacing, or collapsed action rows
 - launcher search, app selection, pinned-app toggles, and overview keyboard movement still work
 - empty states are readable when no apps or sessions are available
+- under labwc, `Super+Space`, `Super+Tab`, `Super+D`, and `Super+N` open apps, sessions, desktop, and notifications
 
 The local release gate is:
 
@@ -70,6 +71,7 @@ Before tagging a desktop release, verify in that Linux/labwc session that:
 
 - `seatshell-shell` starts without compositor or Slint backend errors.
 - the panel can toggle desktop, launcher, and overview.
+- the labwc shortcuts open apps, sessions, desktop, and notifications.
 - the desktop shows quick-launch entries and recent launches after opening apps.
 - launcher search filters application rows and Enter launches the first match.
 - launcher entries from `resources/applications` appear and launch expected commands available in the VM.

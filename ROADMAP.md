@@ -105,7 +105,7 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 - [x] Make the home surface feel like a real desktop canvas instead of a launcher/dashboard stack
 - [x] Move full app browsing into launcher/overlay surfaces so the desktop itself can prioritize workspace, active windows, files, and live system state
 - [ ] Replace static desktop mock objects with real desktop interactions
-- [ ] Draggable desktop icons with saved positions across restarts
+- [x] Draggable desktop icons with saved positions across restarts
 - [ ] Snap-to-grid, auto-arrange, and collision rules for desktop items
 - [ ] Desktop selection model: single-select, marquee selection, and keyboard focus movement
 - [ ] Desktop file objects that can be opened, highlighted, and handed off to default apps
@@ -140,8 +140,8 @@ Objective: make contributors and testers trust the project.
 - [ ] shell D-Bus control tests
 - [ ] packaging for Debian, Arch, and Fedora
 - [ ] reproducible release checklist
-- [ ] architecture docs for services and UI boundaries
-- [ ] issue templates and contribution guide
+- [x] architecture docs for services and UI boundaries
+- [x] issue templates and contribution guide
 
 ### Definition of done
 

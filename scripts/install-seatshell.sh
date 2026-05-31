@@ -46,7 +46,7 @@ for binary in seatshell-admin-daemon seatshell-session seatshell-shell seatshell
     fi
 done
 
-mkdir -p "$BIN_DIR" "$APP_DIR" "$SESSION_DIR" "$SEATSHELL_SHARE/labwc"
+mkdir -p "$BIN_DIR" "$APP_DIR" "$SESSION_DIR" "$SEATSHELL_SHARE/labwc" "$SEATSHELL_SHARE/wallpapers"
 
 install -m 0755 "$TARGET_DIR/seatshell-admin-daemon" "$BIN_DIR/seatshell-admin-daemon"
 install -m 0755 "$TARGET_DIR/seatshell-session" "$BIN_DIR/seatshell-session"
@@ -55,6 +55,7 @@ install -m 0755 "$TARGET_DIR/seatshell-user-agent" "$BIN_DIR/seatshell-user-agen
 
 install -m 0644 "$ROOT"/resources/applications/*.desktop "$APP_DIR/"
 install -m 0644 "$ROOT"/resources/labwc/* "$SEATSHELL_SHARE/labwc/"
+install -m 0644 "$ROOT"/resources/wallpapers/* "$SEATSHELL_SHARE/wallpapers/"
 
 cat >"$SESSION_LAUNCHER" <<EOF
 #!/usr/bin/env sh
@@ -65,6 +66,12 @@ export SEATSHELL_SHARE_DIR="$SEATSHELL_SHARE"
 export SEATSHELL_STATE_DIR="\${SEATSHELL_STATE_DIR:-\${XDG_STATE_HOME:-\$HOME/.local/state}/seatshell}"
 export SEATSHELL_LOG_DIR="\${SEATSHELL_LOG_DIR:-\$SEATSHELL_STATE_DIR/logs}"
 export PATH="$BIN_DIR:\$PATH"
+
+for arg in "\$@"; do
+    if [ "\$arg" = "--dry-run" ] || [ "\$arg" = "--dev-dry-run" ]; then
+        exec "$BIN_DIR/seatshell-session" "\$@"
+    fi
+done
 
 if [ -z "\${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
     exec dbus-run-session "$BIN_DIR/seatshell-session" "\$@"

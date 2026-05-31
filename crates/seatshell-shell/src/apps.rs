@@ -306,18 +306,18 @@ pub fn app_icon_path(app: &AppEntry) -> Option<PathBuf> {
     }
 
     let icon_path = PathBuf::from(icon_name);
-    if icon_path.is_absolute() && icon_path.exists() {
+    if icon_path.is_absolute() && icon_path.exists() && supported_icon_path(&icon_path) {
         return Some(icon_path);
+    }
+
+    if icon_name.contains('.') && !supported_icon_name(icon_name) {
+        return None;
     }
 
     let candidates = if icon_name.ends_with(".png") || icon_name.ends_with(".svg") {
         vec![icon_name.to_string()]
     } else {
-        vec![
-            format!("{icon_name}.svg"),
-            format!("{icon_name}.png"),
-            icon_name.to_string(),
-        ]
+        vec![format!("{icon_name}.svg"), format!("{icon_name}.png")]
     };
 
     let search_roots = [
@@ -342,7 +342,7 @@ pub fn app_icon_path(app: &AppEntry) -> Option<PathBuf> {
         for candidate in &candidates {
             if root_path.is_file() {
                 let direct = root_path.join(candidate);
-                if direct.exists() {
+                if direct.exists() && supported_icon_path(&direct) {
                     return Some(direct);
                 }
                 continue;
@@ -350,13 +350,13 @@ pub fn app_icon_path(app: &AppEntry) -> Option<PathBuf> {
 
             for size in sizes {
                 let sized_direct = root_path.join(size).join(candidate);
-                if sized_direct.exists() {
+                if sized_direct.exists() && supported_icon_path(&sized_direct) {
                     return Some(sized_direct);
                 }
 
                 for subdir in subdirs {
                     let nested = root_path.join(size).join(subdir).join(candidate);
-                    if nested.exists() {
+                    if nested.exists() && supported_icon_path(&nested) {
                         return Some(nested);
                     }
                 }
@@ -365,6 +365,22 @@ pub fn app_icon_path(app: &AppEntry) -> Option<PathBuf> {
     }
 
     None
+}
+
+fn supported_icon_name(icon_name: &str) -> bool {
+    matches!(
+        Path::new(icon_name)
+            .extension()
+            .and_then(|ext| ext.to_str()),
+        Some("png" | "svg")
+    )
+}
+
+fn supported_icon_path(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|ext| ext.to_str()),
+        Some("png" | "svg")
+    )
 }
 
 fn category_or_text_matches(

@@ -7,6 +7,12 @@
     <keybind key="W-Tab">
       <action name="Execute" command="seatshell-shell --toggle-overview" />
     </keybind>
+    <keybind key="W-d">
+      <action name="Execute" command="seatshell-shell --desktop" />
+    </keybind>
+    <keybind key="W-n">
+      <action name="Execute" command="seatshell-shell --notifications" />
+    </keybind>
     <keybind key="W-Return">
       <action name="Execute" command="konsole" />
     </keybind>

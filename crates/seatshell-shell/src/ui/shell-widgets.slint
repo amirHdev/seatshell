@@ -1,23 +1,265 @@
 import { ShellTheme } from "shell-theme.slint";
 
+export component ShellIcon inherits Rectangle {
+    in property <string> name;
+    in property <color> icon-color: ShellTheme.text-primary;
+
+    background: transparent;
+
+    if root.name == "brand" || root.name == "apps": Rectangle {
+        x: parent.width * 0.16;
+        y: parent.height * 0.16;
+        width: parent.width * 0.28;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "brand" || root.name == "apps": Rectangle {
+        x: parent.width * 0.56;
+        y: parent.height * 0.16;
+        width: parent.width * 0.28;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "brand" || root.name == "apps": Rectangle {
+        x: parent.width * 0.16;
+        y: parent.height * 0.56;
+        width: parent.width * 0.28;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "brand" || root.name == "apps": Rectangle {
+        x: parent.width * 0.56;
+        y: parent.height * 0.56;
+        width: parent.width * 0.28;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "desktop": Rectangle {
+        x: parent.width * 0.12;
+        y: parent.height * 0.16;
+        width: parent.width * 0.76;
+        height: parent.height * 0.56;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "desktop": Rectangle {
+        x: parent.width * 0.38;
+        y: parent.height * 0.78;
+        width: parent.width * 0.24;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "desktop": Rectangle {
+        x: parent.width * 0.24;
+        y: parent.height * 0.88;
+        width: parent.width * 0.52;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "sessions" || root.name == "user": Rectangle {
+        x: parent.width * 0.38;
+        y: parent.height * 0.12;
+        width: parent.width * 0.28;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "sessions" || root.name == "user": Rectangle {
+        x: parent.width * 0.2;
+        y: parent.height * 0.5;
+        width: parent.width * 0.64;
+        height: parent.height * 0.38;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "network": Rectangle {
+        x: parent.width * 0.12;
+        y: parent.height * 0.66;
+        width: parent.width * 0.16;
+        height: parent.height * 0.2;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "network": Rectangle {
+        x: parent.width * 0.42;
+        y: parent.height * 0.46;
+        width: parent.width * 0.16;
+        height: parent.height * 0.4;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "network": Rectangle {
+        x: parent.width * 0.72;
+        y: parent.height * 0.2;
+        width: parent.width * 0.16;
+        height: parent.height * 0.66;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "audio": Rectangle {
+        x: parent.width * 0.16;
+        y: parent.height * 0.38;
+        width: parent.width * 0.24;
+        height: parent.height * 0.28;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "audio": Rectangle {
+        x: parent.width * 0.34;
+        y: parent.height * 0.26;
+        width: parent.width * 0.22;
+        height: parent.height * 0.52;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "audio": Text {
+        x: parent.width * 0.52;
+        y: parent.height * 0.05;
+        width: parent.width * 0.44;
+        height: parent.height * 0.9;
+        text: "))";
+        color: root.icon-color;
+        font-size: parent.height * 0.42;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    if root.name == "notifications": Rectangle {
+        x: parent.width * 0.24;
+        y: parent.height * 0.16;
+        width: parent.width * 0.52;
+        height: parent.height * 0.56;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "notifications": Rectangle {
+        x: parent.width * 0.12;
+        y: parent.height * 0.7;
+        width: parent.width * 0.76;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "notifications": Rectangle {
+        x: parent.width * 0.42;
+        y: parent.height * 0.82;
+        width: parent.width * 0.16;
+        height: parent.height * 0.12;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "file": Rectangle {
+        x: parent.width * 0.24;
+        y: parent.height * 0.12;
+        width: parent.width * 0.54;
+        height: parent.height * 0.74;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "lock": Rectangle {
+        x: parent.width * 0.22;
+        y: parent.height * 0.42;
+        width: parent.width * 0.56;
+        height: parent.height * 0.44;
+        background: root.icon-color;
+        border-radius: 3px;
+    }
+
+    if root.name == "lock": Rectangle {
+        x: parent.width * 0.32;
+        y: parent.height * 0.12;
+        width: parent.width * 0.36;
+        height: parent.height * 0.44;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "file": Rectangle {
+        x: parent.width * 0.34;
+        y: parent.height * 0.42;
+        width: parent.width * 0.34;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "file": Rectangle {
+        x: parent.width * 0.34;
+        y: parent.height * 0.58;
+        width: parent.width * 0.34;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "close": Text {
+        text: "x";
+        color: root.icon-color;
+        font-size: parent.height * 0.7;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    if root.name == "command": Text {
+        text: ">";
+        color: root.icon-color;
+        font-size: parent.height * 0.7;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
 export component ShellAction inherits Rectangle {
     in property <string> label;
     in property <string> icon-text: "";
+    in property <string> icon-name: "";
     in property <bool> active: false;
     in property <bool> quiet: false;
     in property <bool> compact: false;
+    in property <bool> tiny: false;
+
     callback clicked();
 
     width: root.label == ""
-        ? (root.compact ? 38px : 42px)
+        ? (root.tiny ? 30px : root.compact ? 34px : 40px)
         : max(
-            root.compact ? 108px : 124px,
-            label-metrics.preferred-width + (root.compact ? 36px : 42px)
+            root.tiny ? 56px : root.compact ? 78px : 104px,
+            label-metrics.preferred-width + (root.tiny ? 22px : root.compact ? 28px : 36px)
         );
-    height: root.compact ? 34px : 38px;
-    border-radius: 999px;
-    border-width: 1px;
+
+    height: root.tiny ? 28px : root.compact ? 32px : 36px;
+    border-radius: root.tiny ? 8px : root.compact ? 10px : 12px;
+    border-width: root.quiet && !root.active && !touch.has-hover ? 0px : 1px;
     border-color: root.active ? ShellTheme.accent : touch.has-hover ? ShellTheme.outline-strong : ShellTheme.outline;
+
     background: root.active
         ? ShellTheme.surface-accent
         : touch.has-hover
@@ -25,6 +267,9 @@ export component ShellAction inherits Rectangle {
             : root.quiet
                 ? transparent
                 : ShellTheme.surface;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
 
     touch := TouchArea {
         clicked => {
@@ -34,29 +279,38 @@ export component ShellAction inherits Rectangle {
 
     label-metrics := Text {
         text: root.label;
-        font-size: 11px;
+        font-size: root.tiny ? 9px : 11px;
         font-weight: root.active ? 700 : 600;
         visible: false;
     }
 
     HorizontalLayout {
-        padding-left: root.compact ? 10px : 13px;
-        padding-right: root.compact ? 10px : 13px;
-        spacing: 8px;
+        padding-left: root.tiny ? 7px : root.compact ? 9px : 12px;
+        padding-right: root.tiny ? 7px : root.compact ? 9px : 12px;
+        spacing: root.tiny ? 4px : 7px;
         alignment: center;
 
-        if root.icon-text != "": Rectangle {
-            width: root.compact ? 20px : 22px;
-            height: root.compact ? 20px : 22px;
-            border-radius: 999px;
-            background: root.active ? ShellTheme.accent : ShellTheme.surface-muted;
+        if root.icon-text != "" || root.icon-name != "": Rectangle {
+            width: root.tiny ? 16px : root.compact ? 18px : 20px;
+            height: root.tiny ? 16px : root.compact ? 18px : 20px;
+            border-radius: root.tiny ? 5px : 6px;
+            background: root.active ? ShellTheme.accent : #ffffff10;
             border-width: 1px;
-            border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+            border-color: root.active ? ShellTheme.accent : #ffffff1c;
 
-            Text {
+            if root.icon-name != "": ShellIcon {
+                x: 4px;
+                y: 4px;
+                width: parent.width - 8px;
+                height: parent.height - 8px;
+                name: root.icon-name;
+                icon-color: root.active ? #1a120d : ShellTheme.text-primary;
+            }
+
+            if root.icon-name == "": Text {
                 text: root.icon-text;
                 color: root.active ? #1a120d : ShellTheme.text-primary;
-                font-size: 10px;
+                font-size: root.tiny ? 8px : 9px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -66,10 +320,11 @@ export component ShellAction inherits Rectangle {
         if root.label != "": Text {
             text: root.label;
             color: root.active ? ShellTheme.text-primary : ShellTheme.text-secondary;
-            font-size: 11px;
+            font-size: root.tiny ? 9px : 11px;
             font-weight: root.active ? 700 : 600;
             horizontal-alignment: center;
             vertical-alignment: center;
+            overflow: elide;
         }
     }
 }
@@ -78,19 +333,22 @@ export component ShellPill inherits Rectangle {
     in property <string> label;
     in property <color> tone: ShellTheme.surface-strong;
     in property <bool> compact: false;
+    in property <bool> tiny: false;
+
     width: max(
-        root.compact ? 82px : 94px,
-        label-metrics.preferred-width + (root.compact ? 28px : 34px)
+        root.tiny ? 50px : root.compact ? 60px : 78px,
+        label-metrics.preferred-width + (root.tiny ? 16px : root.compact ? 20px : 26px)
     );
-    height: root.compact ? 26px : 30px;
-    border-radius: 999px;
+
+    height: root.tiny ? 22px : root.compact ? 24px : 28px;
+    border-radius: root.tiny ? 8px : root.compact ? 9px : 10px;
     background: root.tone;
     border-width: 1px;
-    border-color: ShellTheme.outline-strong;
+    border-color: ShellTheme.outline;
 
     label-metrics := Text {
         text: root.label;
-        font-size: 10px;
+        font-size: root.tiny ? 8px : 10px;
         font-weight: 700;
         visible: false;
     }
@@ -98,33 +356,46 @@ export component ShellPill inherits Rectangle {
     Text {
         text: root.label;
         color: ShellTheme.text-secondary;
-        font-size: 10px;
+        font-size: root.tiny ? 8px : 10px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
+        overflow: elide;
     }
 }
 
 export component DockItem inherits Rectangle {
     in property <string> label;
     in property <string> icon-text;
+    in property <string> icon-name: "";
     in property <image> icon;
     in property <bool> active: false;
     in property <int> running-count: 0;
+    in property <bool> compact: false;
+    in property <bool> tiny: false;
+
     callback clicked();
 
     width: root.label == ""
-        ? 50px
-        : max(104px, label-metrics.preferred-width + 42px);
-    height: 44px;
-    border-radius: ShellTheme.radius-lg * 1px;
-    border-width: 1px;
-    border-color: root.active ? ShellTheme.accent : touch.has-hover ? ShellTheme.outline-strong : ShellTheme.outline;
+        ? (root.tiny ? 34px : root.compact ? 38px : 46px)
+        : max(
+            root.tiny ? 72px : root.compact ? 88px : 104px,
+            label-metrics.preferred-width + (root.tiny ? 28px : 38px)
+        );
+
+    height: root.tiny ? 34px : root.compact ? 38px : 44px;
+    border-radius: root.tiny ? 10px : ShellTheme.radius-lg * 1px;
+    border-width: root.active || touch.has-hover ? 1px : 0px;
+    border-color: root.active ? ShellTheme.accent : ShellTheme.outline-strong;
+
     background: touch.has-hover
         ? ShellTheme.surface-glow
         : root.active
             ? ShellTheme.surface-accent
-            : ShellTheme.surface;
+            : transparent;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
 
     touch := TouchArea {
         clicked => {
@@ -134,37 +405,46 @@ export component DockItem inherits Rectangle {
 
     label-metrics := Text {
         text: root.label;
-        font-size: 11px;
+        font-size: root.tiny ? 9px : 11px;
         font-weight: 700;
         visible: false;
     }
 
     HorizontalLayout {
-        padding-left: 11px;
-        padding-right: 11px;
-        spacing: 7px;
+        padding-left: root.tiny ? 6px : 8px;
+        padding-right: root.tiny ? 6px : 8px;
+        spacing: root.tiny ? 4px : 6px;
         alignment: center;
 
         Rectangle {
-            width: 24px;
-            height: 24px;
-            border-radius: 999px;
-            background: root.active ? ShellTheme.accent : ShellTheme.surface-muted;
+            width: root.tiny ? 22px : root.compact ? 24px : 26px;
+            height: root.tiny ? 22px : root.compact ? 24px : 26px;
+            border-radius: root.tiny ? 5px : 6px;
+            background: root.active ? ShellTheme.accent : #ffffff10;
             border-width: 1px;
-            border-color: root.active ? ShellTheme.accent : ShellTheme.outline;
+            border-color: root.active ? ShellTheme.accent : #ffffff20;
 
             if root.icon.width > 0 && root.icon.height > 0: Image {
                 source: root.icon;
-                width: 14px;
-                height: 14px;
-                x: 5px;
-                y: 5px;
+                width: root.tiny ? 12px : 14px;
+                height: root.tiny ? 12px : 14px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
 
-            if root.icon.width == 0 || root.icon.height == 0: Text {
+            if (root.icon.width == 0 || root.icon.height == 0) && root.icon-name != "": ShellIcon {
+                x: 5px;
+                y: 5px;
+                width: parent.width - 10px;
+                height: parent.height - 10px;
+                name: root.icon-name;
+                icon-color: root.active ? #1a120d : ShellTheme.text-primary;
+            }
+
+            if (root.icon.width == 0 || root.icon.height == 0) && root.icon-name == "": Text {
                 text: root.icon-text;
                 color: root.active ? #1a120d : ShellTheme.text-primary;
-                font-size: 10px;
+                font-size: root.tiny ? 9px : 10px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -174,20 +454,20 @@ export component DockItem inherits Rectangle {
         if root.label != "": Text {
             text: root.label;
             color: ShellTheme.text-primary;
-            font-size: 11px;
+            font-size: root.tiny ? 9px : 11px;
             font-weight: 700;
             overflow: elide;
         }
 
-        if root.running-count > 0: Rectangle {
-            width: root.running-count > 1 ? 18px : 8px;
+        if root.running-count > 1: Rectangle {
+            width: 18px;
             height: 14px;
             border-radius: 999px;
-            background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.surface-accent;
+            background: ShellTheme.accent;
             border-width: 1px;
             border-color: ShellTheme.accent;
 
-            if root.running-count > 1: Text {
+            Text {
                 text: root.running-count + "";
                 color: #1a120d;
                 font-size: 9px;
@@ -200,8 +480,8 @@ export component DockItem inherits Rectangle {
 
     if root.active || root.running-count > 0: Rectangle {
         width: root.running-count > 1 ? 18px : 8px;
-        height: 4px;
-        y: parent.height - 6px;
+        height: 3px;
+        y: parent.height - 5px;
         x: (parent.width - self.width) / 2;
         border-radius: 999px;
         background: ShellTheme.accent;

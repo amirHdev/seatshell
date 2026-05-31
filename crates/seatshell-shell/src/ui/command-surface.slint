@@ -46,27 +46,27 @@ export component CommandSurface inherits Rectangle {
                     horizontal-stretch: 1;
 
                     Text {
-                        text: "Command Surface";
+                        text: "Quick access";
                         color: ShellTheme.text-primary;
                         font-size: 18px;
                         font-weight: 800;
                     }
 
                     Text {
-                        text: "A focused layer for decisive moves and trusted launch paths.";
+                        text: "Pinned and recent applications.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
                 }
 
                 ShellPill {
-                    label: "Quick layer";
+                    label: "Shortcuts";
                     compact: true;
                 }
 
                 ShellAction {
                     label: "Close";
-                    icon-text: "X";
+                    icon-name: "close";
                     compact: true;
                     clicked => {
                         root.close();
@@ -84,7 +84,7 @@ export component CommandSurface inherits Rectangle {
 
                 ShellAction {
                     label: "Launcher";
-                    icon-text: "A";
+                    icon-name: "apps";
                     compact: true;
                     clicked => {
                         root.show-launcher();
@@ -93,7 +93,7 @@ export component CommandSurface inherits Rectangle {
 
                 if root.overview-enabled: ShellAction {
                     label: "Overview";
-                    icon-text: "U";
+                    icon-name: "sessions";
                     compact: true;
                     clicked => {
                         root.show-overview();

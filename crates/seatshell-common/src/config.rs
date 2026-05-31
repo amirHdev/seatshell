@@ -26,7 +26,7 @@ impl Default for DesktopConfig {
         Self {
             theme: "dark".into(),
             accent: "#4a90e2".into(),
-            wallpaper: "/usr/share/seatshell/wallpapers/default.jpg".into(),
+            wallpaper: "/usr/share/seatshell/wallpapers/default.png".into(),
         }
     }
 }
@@ -43,7 +43,7 @@ impl Default for PanelConfig {
     fn default() -> Self {
         Self {
             position: PanelPosition::Bottom,
-            height: 42,
+            height: 60,
             show_user_switcher: true,
         }
     }

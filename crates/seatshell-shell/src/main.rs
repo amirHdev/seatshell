@@ -46,6 +46,7 @@ fn main() -> Result<()> {
     let favorite_ids = load_favorite_app_ids();
     let running_counts = Rc::new(RefCell::new(current_running_app_counts(&apps)));
     let featured_apps = featured_or_favorite_apps(&apps, &favorite_ids, 6);
+    let desktop_shortcut_positions = Rc::new(RefCell::new(load_desktop_shortcut_positions()));
     let recent_ids = load_recent_app_ids();
     let recent_app_entries = recent_apps(&apps, &recent_ids, 6);
     let recent_files = recent_files(3);
@@ -83,6 +84,11 @@ fn main() -> Result<()> {
         &running_counts.borrow(),
     ));
     ui.set_recent_files(recent_file_model(&recent_files));
+    ui.set_desktop_shortcuts(desktop_shortcut_model(
+        &featured_apps,
+        &running_counts.borrow(),
+        &desktop_shortcut_positions.borrow(),
+    ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(&apps, &favorite_ids, &running_counts.borrow(), 5),
         &favorite_ids,
@@ -95,7 +101,7 @@ fn main() -> Result<()> {
     ui.set_notifications(notification_model(&[]));
     ui.set_notification_count(0);
 
-    ui.set_panel_height((config.panel.height as i32).clamp(34, 38));
+    ui.set_panel_height((config.panel.height as i32).clamp(58, 68));
     ui.set_accent(config.desktop.accent.into());
     ui.set_clock_text(clock_text().into());
     ui.set_status_text(shell_status_text(&sessions).into());
@@ -115,7 +121,7 @@ fn main() -> Result<()> {
     ui.set_panel_on_top(matches!(config.panel.position, PanelPosition::Top));
     ui.set_show_user_switcher(config.panel.show_user_switcher && config.overview.enabled);
     ui.set_theme_name(config.desktop.theme.into());
-    ui.set_wallpaper_path(config.desktop.wallpaper.into());
+    ui.set_wallpaper_image(load_wallpaper_image(&config.desktop.wallpaper));
     ui.set_app_count(apps.len() as i32);
     ui.set_session_count(sessions.len() as i32);
     ui.set_user_name(current_username().into());
@@ -376,6 +382,7 @@ fn main() -> Result<()> {
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let selected_app_id = Rc::clone(&selected_app_id);
         let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
         let weak = ui.as_weak();
         let running_timer = Timer::default();
         running_timer.start(TimerMode::Repeated, Duration::from_secs(4), move || {
@@ -394,6 +401,7 @@ fn main() -> Result<()> {
                     &recent_app_ids.borrow(),
                     selected_app_id.borrow().as_deref(),
                     &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
                 );
             }
         });
@@ -503,6 +511,7 @@ fn main() -> Result<()> {
         let selected_app_id = Rc::clone(&selected_app_id);
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
         let weak = ui.as_weak();
         ui.on_move_launcher_selection(move |step| {
             *selected_app_id.borrow_mut() = move_selected_app_id(
@@ -541,6 +550,11 @@ fn main() -> Result<()> {
                     None,
                     &running_counts.borrow(),
                 ));
+                ui.set_desktop_shortcuts(desktop_shortcut_model(
+                    &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                ));
             }
         });
     }
@@ -552,6 +566,7 @@ fn main() -> Result<()> {
         let selected_app_id = Rc::clone(&selected_app_id);
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
         let weak = ui.as_weak();
         ui.on_toggle_favorite_app(move |app_id| {
             toggle_favorite_app_id(&app_id, &favorite_app_ids);
@@ -585,6 +600,30 @@ fn main() -> Result<()> {
                     &favorite_app_ids.borrow(),
                     None,
                     &running_counts.borrow(),
+                ));
+                ui.set_desktop_shortcuts(desktop_shortcut_model(
+                    &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                ));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let weak = ui.as_weak();
+        ui.on_move_desktop_shortcut(move |app_id, x, y| {
+            set_desktop_shortcut_position(&app_id, x, y, &desktop_shortcut_positions);
+
+            if let Some(ui) = weak.upgrade() {
+                ui.set_desktop_shortcuts(desktop_shortcut_model(
+                    &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
                 ));
             }
         });
@@ -947,6 +986,24 @@ fn load_app_icon(app: &apps::AppEntry) -> Image {
         .unwrap_or_default()
 }
 
+fn load_wallpaper_image(configured_path: &str) -> Image {
+    let mut candidates = vec![PathBuf::from(configured_path)];
+
+    if let Some(share_dir) = std::env::var_os("SEATSHELL_SHARE_DIR") {
+        candidates.push(PathBuf::from(share_dir).join("wallpapers/default.png"));
+    }
+
+    candidates.push(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../resources/wallpapers/default.png"),
+    );
+
+    candidates
+        .into_iter()
+        .filter(|path| path.is_file())
+        .find_map(|path| Image::load_from_path(&path).ok())
+        .unwrap_or_default()
+}
+
 fn notification_model(notifications: &[StoredNotification]) -> ModelRc<NotificationEntry> {
     ModelRc::new(VecModel::from(
         notifications
@@ -974,6 +1031,33 @@ fn recent_file_model(files: &[RecentFileEntry]) -> ModelRc<DesktopFile> {
     ))
 }
 
+fn desktop_shortcut_model(
+    apps: &[apps::AppEntry],
+    running_counts: &HashMap<String, i32>,
+    positions: &HashMap<String, DesktopShortcutPosition>,
+) -> ModelRc<DesktopShortcutEntry> {
+    ModelRc::new(VecModel::from(
+        apps.iter()
+            .enumerate()
+            .map(|(index, app)| {
+                let fallback = default_desktop_shortcut_position(index);
+                let position = clamp_desktop_shortcut_position(
+                    positions.get(&app.id).copied().unwrap_or(fallback),
+                );
+                DesktopShortcutEntry {
+                    id: app.id.clone().into(),
+                    name: app.name.clone().into(),
+                    icon_text: apps::app_icon_text(app).into(),
+                    icon: load_app_icon(app),
+                    active: running_counts.get(&app.id).copied().unwrap_or_default() > 0,
+                    x: position.x,
+                    y: position.y,
+                }
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
 fn refresh_app_models(
     ui: &AppWindow,
     all_apps: &[apps::AppEntry],
@@ -982,6 +1066,7 @@ fn refresh_app_models(
     recent_ids: &[String],
     selected_id: Option<&str>,
     running_counts: &HashMap<String, i32>,
+    desktop_shortcut_positions: &HashMap<String, DesktopShortcutPosition>,
 ) {
     ui.set_launcher_apps(launcher_model(
         filtered_apps,
@@ -1006,6 +1091,11 @@ fn refresh_app_models(
         favorite_ids,
         None,
         running_counts,
+    ));
+    ui.set_desktop_shortcuts(desktop_shortcut_model(
+        &featured_or_favorite_apps(all_apps, favorite_ids, 6),
+        running_counts,
+        desktop_shortcut_positions,
     ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(all_apps, favorite_ids, running_counts, 5),
@@ -1032,6 +1122,8 @@ fn session_model(sessions: &[UserSession], selected_action: Option<&str>) -> Mod
                 state: session.state.clone(),
                 action: session.action.clone(),
                 selected: selected_action == Some(session.action.as_str()),
+                locked: session.locked,
+                current: session.current,
             })
             .collect::<Vec<_>>(),
     ))
@@ -1603,6 +1695,106 @@ fn current_seat() -> String {
     std::env::var("XDG_SEAT").unwrap_or_else(|_| "seat0".into())
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DesktopShortcutPosition {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+struct DesktopShortcutLayoutState {
+    #[serde(default)]
+    shortcuts: Vec<DesktopShortcutPlacement>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+struct DesktopShortcutPlacement {
+    id: String,
+    x: i32,
+    y: i32,
+}
+
+fn load_desktop_shortcut_positions() -> HashMap<String, DesktopShortcutPosition> {
+    let Some(path) = state_file_path("desktop-shortcuts.toml") else {
+        return HashMap::new();
+    };
+
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return HashMap::new();
+    };
+
+    let Ok(state) = toml::from_str::<DesktopShortcutLayoutState>(&content) else {
+        return HashMap::new();
+    };
+
+    state
+        .shortcuts
+        .into_iter()
+        .map(|shortcut| {
+            (
+                shortcut.id,
+                DesktopShortcutPosition {
+                    x: shortcut.x,
+                    y: shortcut.y,
+                },
+            )
+        })
+        .collect()
+}
+
+fn clamp_desktop_shortcut_position(position: DesktopShortcutPosition) -> DesktopShortcutPosition {
+    DesktopShortcutPosition {
+        x: position.x.clamp(20, 112),
+        y: position.y.clamp(20, 430),
+    }
+}
+
+fn set_desktop_shortcut_position(
+    app_id: &str,
+    x: i32,
+    y: i32,
+    positions: &Rc<RefCell<HashMap<String, DesktopShortcutPosition>>>,
+) {
+    positions.borrow_mut().insert(
+        app_id.to_string(),
+        clamp_desktop_shortcut_position(DesktopShortcutPosition { x, y }),
+    );
+    persist_desktop_shortcut_positions(&positions.borrow());
+}
+
+fn persist_desktop_shortcut_positions(positions: &HashMap<String, DesktopShortcutPosition>) {
+    let Some(path) = state_file_path("desktop-shortcuts.toml") else {
+        return;
+    };
+
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+
+    let mut shortcuts = positions
+        .iter()
+        .map(|(id, position)| DesktopShortcutPlacement {
+            id: id.clone(),
+            x: position.x,
+            y: position.y,
+        })
+        .collect::<Vec<_>>();
+    shortcuts.sort_by(|left, right| left.id.cmp(&right.id));
+
+    if let Ok(content) = toml::to_string_pretty(&DesktopShortcutLayoutState { shortcuts }) {
+        let _ = std::fs::write(path, content);
+    }
+}
+
+fn default_desktop_shortcut_position(index: usize) -> DesktopShortcutPosition {
+    const COLUMNS: [i32; 2] = [28, 112];
+    const ROWS: [i32; 3] = [28, 142, 256];
+
+    let column = COLUMNS[(index / ROWS.len()).min(COLUMNS.len() - 1)];
+    let row = ROWS[index % ROWS.len()];
+    DesktopShortcutPosition { x: column, y: row }
+}
+
 fn recent_apps(
     apps: &[apps::AppEntry],
     recent_ids: &[String],
@@ -2004,6 +2196,8 @@ fn session_row_to_ui(
         state: state_text.into(),
         action: format!("session {id}").into(),
         selected: false,
+        locked,
+        current: !locked && state == "active",
     }
 }
 
@@ -2019,6 +2213,8 @@ fn current_sessions() -> Vec<UserSession> {
         state: format!("active on {seat}").into(),
         action: format!("session {session_id}").into(),
         selected: false,
+        locked: false,
+        current: true,
     }]
 }
 
@@ -2208,12 +2404,16 @@ mod tests {
                 state: "active".into(),
                 action: "session a".into(),
                 selected: false,
+                locked: false,
+                current: true,
             },
             UserSession {
                 username: "bob".into(),
                 state: "locked".into(),
                 action: "session b".into(),
                 selected: false,
+                locked: true,
+                current: false,
             },
         ];
 
@@ -2388,6 +2588,20 @@ lo:loopback:connected (externally):lo
             parse_nmcli_device_status(output),
             Some("NET Wired conn".to_string())
         );
+    }
+
+    #[test]
+    fn desktop_shortcut_positions_are_clamped_to_the_desktop_lane() {
+        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 280, y: -14 });
+        assert_eq!(position.x, 112);
+        assert_eq!(position.y, 20);
+
+        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 84 });
+        assert_eq!(position.x, 36);
+        assert_eq!(position.y, 84);
+
+        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 900 });
+        assert_eq!(position.y, 430);
     }
 
     #[test]

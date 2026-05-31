@@ -14,15 +14,18 @@ export component AppRow inherits Rectangle {
     callback clicked();
     callback toggle-favorite();
 
-    height: 64px;
-    border-radius: ShellTheme.radius-lg * 1px;
-    border-width: 1px;
-    border-color: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.outline;
+    height: 58px;
+    border-radius: 14px;
+    border-width: root.selected || touch.has-hover ? 1px : 0px;
+    border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
     background: root.selected
         ? ShellTheme.surface-accent
         : touch.has-hover
-            ? ShellTheme.surface-glow
-            : ShellTheme.surface;
+            ? #ffffff0d
+            : transparent;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
 
     touch := TouchArea {
         clicked => {
@@ -31,25 +34,25 @@ export component AppRow inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 14px;
-        padding-right: 14px;
+        padding-left: 12px;
+        padding-right: 12px;
         spacing: 12px;
         alignment: center;
 
         Rectangle {
-            width: 42px;
-            height: 42px;
-            background: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.surface-muted;
+            width: 38px;
+            height: 38px;
+            background: root.selected || touch.has-hover ? ShellTheme.accent : #ffffff10;
             border-radius: 999px;
             border-width: 1px;
-            border-color: root.selected || touch.has-hover ? ShellTheme.accent : ShellTheme.outline;
+            border-color: root.selected || touch.has-hover ? ShellTheme.accent : #ffffff20;
 
             if root.icon.width > 0 && root.icon.height > 0: Image {
                 source: root.icon;
                 width: 22px;
                 height: 22px;
-                x: 10px;
-                y: 10px;
+                x: 8px;
+                y: 8px;
             }
 
             if root.icon.width == 0 || root.icon.height == 0: Text {
@@ -63,15 +66,13 @@ export component AppRow inherits Rectangle {
         }
 
         VerticalLayout {
-            padding-top: 8px;
-            padding-bottom: 8px;
-            spacing: 3px;
+            spacing: 2px;
             horizontal-stretch: 1;
 
             Text {
                 text: root.name;
                 color: ShellTheme.text-primary;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 800;
                 overflow: elide;
                 horizontal-stretch: 1;
@@ -87,46 +88,28 @@ export component AppRow inherits Rectangle {
         }
 
         if root.running-count > 0: Rectangle {
-            width: root.running-count > 1 ? 28px : 18px;
-            height: 20px;
-            background: root.running-count > 1 ? ShellTheme.accent-soft : transparent;
+            width: root.running-count > 1 ? 22px : 8px;
+            height: root.running-count > 1 ? 18px : 8px;
+            background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.text-muted;
             border-radius: 999px;
-            border-width: root.running-count > 1 ? 1px : 0px;
-            border-color: ShellTheme.accent;
 
-            Text {
-                text: root.running-count > 1 ? root.running-count + "" : "•";
-                color: root.running-count > 1 ? ShellTheme.text-accent : ShellTheme.text-primary;
-                font-size: root.running-count > 1 ? 10px : 14px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
-
-        Rectangle {
-            width: 22px;
-            height: 22px;
-            background: transparent;
-            opacity: touch.has-hover || root.selected ? 1 : 0.55;
-
-            Text {
-                text: ">";
-                color: touch.has-hover || root.selected ? ShellTheme.text-accent : ShellTheme.text-secondary;
-                font-size: 12px;
-                font-weight: 700;
+            if root.running-count > 1: Text {
+                text: root.running-count + "";
+                color: #1a120d;
+                font-size: 9px;
+                font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
 
         if root.show-favorite-toggle: Rectangle {
-            width: 60px;
-            height: 30px;
-            background: root.favorite ? ShellTheme.surface-accent : ShellTheme.surface-muted;
-            border-radius: 999px;
+            width: 46px;
+            height: 26px;
+            background: root.favorite ? ShellTheme.surface-accent : #ffffff0d;
+            border-radius: 8px;
             border-width: 1px;
-            border-color: root.favorite ? ShellTheme.accent : ShellTheme.outline;
+            border-color: root.favorite ? ShellTheme.accent : #ffffff22;
 
             pin-touch := TouchArea {
                 clicked => {
@@ -135,9 +118,9 @@ export component AppRow inherits Rectangle {
             }
 
             Text {
-                text: root.favorite ? "Kept" : "Pin";
-                color: root.favorite ? ShellTheme.text-accent : ShellTheme.text-primary;
-                font-size: 11px;
+                text: root.favorite ? "On" : "Pin";
+                color: root.favorite ? ShellTheme.text-accent : ShellTheme.text-secondary;
+                font-size: 10px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;

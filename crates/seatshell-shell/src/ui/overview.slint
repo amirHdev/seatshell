@@ -8,6 +8,8 @@ export struct UserSession {
     state: string,
     action: string,
     selected: bool,
+    locked: bool,
+    current: bool,
 }
 
 export component Overview inherits FocusScope {
@@ -69,10 +71,7 @@ export component Overview inherits FocusScope {
 
             Rectangle {
                 height: root.compact ? 168px : 128px;
-                background: ShellTheme.background-elevated;
-                border-radius: ShellTheme.radius-xl * 1px;
-                border-width: 1px;
-                border-color: ShellTheme.outline;
+                background: transparent;
 
                 if !root.compact: HorizontalLayout {
                     padding: 16px;
@@ -84,21 +83,21 @@ export component Overview inherits FocusScope {
                         horizontal-stretch: 1;
 
                         Text {
-                            text: "SingleSeat Overview";
+                            text: "Seat Overview";
                             color: ShellTheme.text-primary;
                             font-size: 20px;
                             font-weight: 800;
                         }
 
                         Text {
-                            text: "A calmer readout of local sessions, their current state, and the next action you can safely take.";
+                            text: "Switch between local sessions.";
                             color: ShellTheme.text-secondary;
                             font-size: 12px;
                             wrap: word-wrap;
                         }
 
                         Text {
-                            text: "Concept before clutter. " + root.status-text;
+                            text: root.status-text;
                             color: ShellTheme.text-muted;
                             font-size: 11px;
                             wrap: word-wrap;
@@ -112,7 +111,7 @@ export component Overview inherits FocusScope {
 
                     ShellAction {
                         label: "Activate";
-                        icon-text: ">";
+                        icon-name: "command";
                         compact: true;
                         clicked => {
                             root.activate-current-session();
@@ -121,7 +120,7 @@ export component Overview inherits FocusScope {
 
                     ShellAction {
                         label: "Close";
-                        icon-text: "X";
+                        icon-name: "close";
                         compact: true;
                         clicked => {
                             root.close();
@@ -134,21 +133,21 @@ export component Overview inherits FocusScope {
                     spacing: 8px;
 
                     Text {
-                        text: "SingleSeat Overview";
+                        text: "Seat Overview";
                         color: ShellTheme.text-primary;
                         font-size: 18px;
                         font-weight: 800;
                     }
 
                     Text {
-                        text: "A calmer readout of local sessions, their current state, and the next action you can safely take.";
+                        text: "Switch between local sessions.";
                         color: ShellTheme.text-secondary;
                         font-size: 11px;
                         wrap: word-wrap;
                     }
 
                     Text {
-                        text: "Concept before clutter. " + root.status-text;
+                        text: root.status-text;
                         color: ShellTheme.text-muted;
                         font-size: 11px;
                         wrap: word-wrap;
@@ -164,7 +163,7 @@ export component Overview inherits FocusScope {
 
                         ShellAction {
                             label: "Activate";
-                            icon-text: ">";
+                            icon-name: "command";
                             compact: true;
                             clicked => {
                                 root.activate-current-session();
@@ -173,7 +172,7 @@ export component Overview inherits FocusScope {
 
                         ShellAction {
                             label: "Close";
-                            icon-text: "X";
+                            icon-name: "close";
                             compact: true;
                             clicked => {
                                 root.close();
@@ -189,34 +188,29 @@ export component Overview inherits FocusScope {
 
                 Rectangle {
                     width: 300px;
-                    background: ShellTheme.surface;
+                    background: #11192780;
                     border-radius: ShellTheme.radius-xl * 1px;
-                    border-width: 1px;
-                    border-color: ShellTheme.outline;
 
                     VerticalLayout {
                         padding: 14px;
                         spacing: 12px;
 
                         Text {
-                            text: "Reading the room";
+                            text: "Session controls";
                             color: ShellTheme.text-primary;
                             font-size: 15px;
                             font-weight: 800;
                         }
 
                         Text {
-                            text: "This surface should explain who is active, who is idle, and what selection you are about to act on before SeatShell grows real admin controls.";
+                            text: "Select a local session and activate it without leaving the shell.";
                             color: ShellTheme.text-secondary;
                             font-size: 11px;
                             wrap: word-wrap;
                         }
 
                         Rectangle {
-                            background: ShellTheme.background-elevated;
-                            border-radius: ShellTheme.radius-lg * 1px;
-                            border-width: 1px;
-                            border-color: ShellTheme.outline;
+                            background: transparent;
 
                             VerticalLayout {
                                 padding: 12px;
@@ -230,7 +224,7 @@ export component Overview inherits FocusScope {
                                 }
 
                                 Text {
-                                    text: "Use Up and Down to move between sessions. Press Enter to activate the current selection.";
+                                    text: "Use Up and Down to move. Press Enter to activate the selection.";
                                     color: ShellTheme.text-muted;
                                     font-size: 11px;
                                     wrap: word-wrap;
@@ -239,24 +233,21 @@ export component Overview inherits FocusScope {
                         }
 
                         Rectangle {
-                            background: ShellTheme.background-elevated;
-                            border-radius: ShellTheme.radius-lg * 1px;
-                            border-width: 1px;
-                            border-color: ShellTheme.outline;
+                            background: transparent;
 
                             VerticalLayout {
                                 padding: 12px;
                                 spacing: 8px;
 
                                 Text {
-                                    text: "Direction";
+                                    text: "States";
                                     color: ShellTheme.text-secondary;
                                     font-size: 12px;
                                     font-weight: 700;
                                 }
 
                                 Text {
-                                    text: "The next design pass should distinguish current, locked, and inactive sessions more clearly than a plain label alone.";
+                                    text: "Current, locked, and inactive sessions use distinct colors.";
                                     color: ShellTheme.text-muted;
                                     font-size: 11px;
                                     wrap: word-wrap;
@@ -273,7 +264,7 @@ export component Overview inherits FocusScope {
 
                 Rectangle {
                     horizontal-stretch: 1;
-                    background: ShellTheme.surface;
+                    background: #11192780;
                     border-radius: ShellTheme.radius-xl * 1px;
                     border-width: 1px;
                     border-color: ShellTheme.outline;
@@ -330,6 +321,8 @@ export component Overview inherits FocusScope {
                                     state: session.state;
                                     action: session.action;
                                     selected: session.selected;
+                                    locked: session.locked;
+                                    current: session.current;
                                     accent: root.accent;
                                 }
                             }
@@ -404,6 +397,8 @@ export component Overview inherits FocusScope {
                                 state: session.state;
                                 action: session.action;
                                 selected: session.selected;
+                                locked: session.locked;
+                                current: session.current;
                                 accent: root.accent;
                             }
                         }
