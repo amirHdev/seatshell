@@ -1058,6 +1058,7 @@ fn desktop_shortcut_model(
     ))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn refresh_app_models(
     ui: &AppWindow,
     all_apps: &[apps::AppEntry],
