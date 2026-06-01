@@ -10,12 +10,15 @@ export component AppRow inherits Rectangle {
     in property <bool> favorite: false;
     in property <int> running-count: 0;
     in property <bool> show-favorite-toggle: false;
+    in property <bool> compact: false;
+    in property <bool> tiny: false;
 
     callback clicked();
     callback toggle-favorite();
 
-    height: 58px;
-    border-radius: 14px;
+    height: root.tiny ? 46px : root.compact ? 52px : 58px;
+    horizontal-stretch: 1;
+    border-radius: root.compact ? 11px : 14px;
     border-width: root.selected || touch.has-hover ? 1px : 0px;
     border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
     background: root.selected
@@ -34,14 +37,14 @@ export component AppRow inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 12px;
+        padding-left: root.tiny ? 7px : root.compact ? 9px : 12px;
+        padding-right: root.tiny ? 7px : root.compact ? 9px : 12px;
+        spacing: root.tiny ? 7px : root.compact ? 9px : 12px;
         alignment: center;
 
         Rectangle {
-            width: 38px;
-            height: 38px;
+            width: root.tiny ? 28px : root.compact ? 32px : 38px;
+            height: root.tiny ? 28px : root.compact ? 32px : 38px;
             background: root.selected || touch.has-hover ? ShellTheme.accent : #ffffff10;
             border-radius: 999px;
             border-width: 1px;
@@ -49,16 +52,16 @@ export component AppRow inherits Rectangle {
 
             if root.icon.width > 0 && root.icon.height > 0: Image {
                 source: root.icon;
-                width: 22px;
-                height: 22px;
-                x: 8px;
-                y: 8px;
+                width: root.tiny ? 16px : root.compact ? 18px : 22px;
+                height: root.tiny ? 16px : root.compact ? 18px : 22px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
 
             if root.icon.width == 0 || root.icon.height == 0: Text {
                 text: root.icon-text;
                 color: root.selected || touch.has-hover ? #1a120d : ShellTheme.text-primary;
-                font-size: 12px;
+                font-size: root.tiny ? 9px : root.compact ? 10px : 12px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -72,24 +75,24 @@ export component AppRow inherits Rectangle {
             Text {
                 text: root.name;
                 color: ShellTheme.text-primary;
-                font-size: 13px;
+                font-size: root.tiny ? 11px : root.compact ? 12px : 13px;
                 font-weight: 800;
                 overflow: elide;
                 horizontal-stretch: 1;
             }
 
-            Text {
+            if !root.tiny: Text {
                 text: root.detail;
                 color: ShellTheme.text-muted;
-                font-size: 11px;
+                font-size: root.compact ? 10px : 11px;
                 overflow: elide;
                 horizontal-stretch: 1;
             }
         }
 
         if root.running-count > 0: Rectangle {
-            width: root.running-count > 1 ? 22px : 8px;
-            height: root.running-count > 1 ? 18px : 8px;
+            width: root.running-count > 1 ? (root.tiny ? 18px : 22px) : 8px;
+            height: root.running-count > 1 ? (root.tiny ? 16px : 18px) : 8px;
             background: root.running-count > 1 ? ShellTheme.accent : ShellTheme.text-muted;
             border-radius: 999px;
 
@@ -104,8 +107,8 @@ export component AppRow inherits Rectangle {
         }
 
         if root.show-favorite-toggle: Rectangle {
-            width: 46px;
-            height: 26px;
+            width: root.tiny ? 32px : root.compact ? 40px : 46px;
+            height: root.tiny ? 22px : root.compact ? 24px : 26px;
             background: root.favorite ? ShellTheme.surface-accent : #ffffff0d;
             border-radius: 8px;
             border-width: 1px;
@@ -120,7 +123,7 @@ export component AppRow inherits Rectangle {
             Text {
                 text: root.favorite ? "On" : "Pin";
                 color: root.favorite ? ShellTheme.text-accent : ShellTheme.text-secondary;
-                font-size: 10px;
+                font-size: root.tiny ? 8px : 10px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;

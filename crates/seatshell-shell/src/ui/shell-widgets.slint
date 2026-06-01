@@ -235,6 +235,110 @@ export component ShellIcon inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
+
+    if root.name == "settings": Rectangle {
+        x: parent.width * 0.34;
+        y: parent.height * 0.34;
+        width: parent.width * 0.32;
+        height: parent.height * 0.32;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "settings": Rectangle {
+        x: parent.width * 0.44;
+        y: parent.height * 0.04;
+        width: parent.width * 0.12;
+        height: parent.height * 0.26;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "settings": Rectangle {
+        x: parent.width * 0.44;
+        y: parent.height * 0.7;
+        width: parent.width * 0.12;
+        height: parent.height * 0.26;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "settings": Rectangle {
+        x: parent.width * 0.04;
+        y: parent.height * 0.44;
+        width: parent.width * 0.26;
+        height: parent.height * 0.12;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "settings": Rectangle {
+        x: parent.width * 0.7;
+        y: parent.height * 0.44;
+        width: parent.width * 0.26;
+        height: parent.height * 0.12;
+        background: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "power": Rectangle {
+        x: parent.width * 0.16;
+        y: parent.height * 0.2;
+        width: parent.width * 0.68;
+        height: parent.height * 0.68;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "power": Rectangle {
+        x: parent.width * 0.43;
+        y: parent.height * 0.02;
+        width: parent.width * 0.14;
+        height: parent.height * 0.54;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "brightness": Rectangle {
+        x: parent.width * 0.34;
+        y: parent.height * 0.34;
+        width: parent.width * 0.32;
+        height: parent.height * 0.32;
+        background: root.icon-color;
+        border-radius: 999px;
+    }
+
+    if root.name == "display": Rectangle {
+        x: parent.width * 0.1;
+        y: parent.height * 0.14;
+        width: parent.width * 0.8;
+        height: parent.height * 0.58;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.icon-color;
+        border-radius: 2px;
+    }
+
+    if root.name == "display": Rectangle {
+        x: parent.width * 0.3;
+        y: parent.height * 0.82;
+        width: parent.width * 0.4;
+        height: 2px;
+        background: root.icon-color;
+    }
+
+    if root.name == "shield": Rectangle {
+        x: parent.width * 0.18;
+        y: parent.height * 0.12;
+        width: parent.width * 0.64;
+        height: parent.height * 0.76;
+        background: root.icon-color;
+        border-radius: 5px;
+    }
 }
 
 export component ShellAction inherits Rectangle {
@@ -245,17 +349,19 @@ export component ShellAction inherits Rectangle {
     in property <bool> quiet: false;
     in property <bool> compact: false;
     in property <bool> tiny: false;
+    in property <bool> fill: false;
 
     callback clicked();
 
     width: root.label == ""
-        ? (root.tiny ? 30px : root.compact ? 34px : 40px)
+        ? (root.tiny ? 28px : root.compact ? 34px : 40px)
         : max(
-            root.tiny ? 56px : root.compact ? 78px : 104px,
-            label-metrics.preferred-width + (root.tiny ? 22px : root.compact ? 28px : 36px)
+            root.tiny ? 46px : root.compact ? 66px : 96px,
+            label-metrics.preferred-width + (root.tiny ? 16px : root.compact ? 24px : 32px)
         );
 
     height: root.tiny ? 28px : root.compact ? 32px : 36px;
+    horizontal-stretch: root.fill ? 1 : 0;
     border-radius: root.tiny ? 8px : root.compact ? 10px : 12px;
     border-width: root.quiet && !root.active && !touch.has-hover ? 0px : 1px;
     border-color: root.active ? ShellTheme.accent : touch.has-hover ? ShellTheme.outline-strong : ShellTheme.outline;
@@ -285,8 +391,8 @@ export component ShellAction inherits Rectangle {
     }
 
     HorizontalLayout {
-        padding-left: root.tiny ? 7px : root.compact ? 9px : 12px;
-        padding-right: root.tiny ? 7px : root.compact ? 9px : 12px;
+        padding-left: root.tiny ? 5px : root.compact ? 8px : 11px;
+        padding-right: root.tiny ? 5px : root.compact ? 8px : 11px;
         spacing: root.tiny ? 4px : 7px;
         alignment: center;
 
@@ -325,6 +431,7 @@ export component ShellAction inherits Rectangle {
             horizontal-alignment: center;
             vertical-alignment: center;
             overflow: elide;
+            horizontal-stretch: root.fill ? 1 : 0;
         }
     }
 }
@@ -336,8 +443,8 @@ export component ShellPill inherits Rectangle {
     in property <bool> tiny: false;
 
     width: max(
-        root.tiny ? 50px : root.compact ? 60px : 78px,
-        label-metrics.preferred-width + (root.tiny ? 16px : root.compact ? 20px : 26px)
+        root.tiny ? 34px : root.compact ? 48px : 68px,
+        label-metrics.preferred-width + (root.tiny ? 10px : root.compact ? 16px : 22px)
     );
 
     height: root.tiny ? 22px : root.compact ? 24px : 28px;

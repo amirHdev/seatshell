@@ -9,6 +9,7 @@ export component CommandSurface inherits Rectangle {
     in property <bool> overview-enabled: true;
     in property <[LauncherApp]> featured-apps;
     in property <[LauncherApp]> recent-apps;
+    in property <bool> compact: root.width < 420px || root.height < 460px;
 
     callback close();
     callback show-launcher();
@@ -24,18 +25,18 @@ export component CommandSurface inherits Rectangle {
     }
 
     Rectangle {
-        x: min(24px, root.width * 0.03);
-        y: min(24px, root.height * 0.03);
-        width: min(root.width - 48px, 440px);
-        height: min(root.height - 48px, 520px);
+        width: min(root.width - 24px, 440px);
+        height: min(root.height - 24px, 520px);
+        x: max(12px, (root.width - self.width) / 2);
+        y: max(12px, (root.height - self.height) / 2);
         background: ShellTheme.background-elevated;
         border-radius: ShellTheme.radius-xl * 1px;
         border-width: 1px;
         border-color: ShellTheme.outline;
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 12px;
+            padding: root.compact ? 12px : 16px;
+            spacing: root.compact ? 8px : 12px;
 
             HorizontalLayout {
                 spacing: 8px;
@@ -52,20 +53,20 @@ export component CommandSurface inherits Rectangle {
                         font-weight: 800;
                     }
 
-                    Text {
+                    if !root.compact: Text {
                         text: "Pinned and recent applications.";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
                     }
                 }
 
-                ShellPill {
+                if !root.compact: ShellPill {
                     label: "Shortcuts";
                     compact: true;
                 }
 
                 ShellAction {
-                    label: "Close";
+                    label: root.compact ? "" : "Close";
                     icon-name: "close";
                     compact: true;
                     clicked => {
@@ -86,6 +87,7 @@ export component CommandSurface inherits Rectangle {
                     label: "Launcher";
                     icon-name: "apps";
                     compact: true;
+                    fill: true;
                     clicked => {
                         root.show-launcher();
                     }
@@ -95,6 +97,7 @@ export component CommandSurface inherits Rectangle {
                     label: "Overview";
                     icon-name: "sessions";
                     compact: true;
+                    fill: true;
                     clicked => {
                         root.show-overview();
                     }
@@ -128,6 +131,8 @@ export component CommandSurface inherits Rectangle {
                                 icon: app.icon;
                                 favorite: app.favorite;
                                 accent: root.accent;
+                                compact: root.compact;
+                                tiny: root.width < 360px;
                                 clicked => {
                                     root.launch-app(app.id);
                                 }
@@ -155,6 +160,8 @@ export component CommandSurface inherits Rectangle {
                                 icon: app.icon;
                                 favorite: app.favorite;
                                 accent: root.accent;
+                                compact: root.compact;
+                                tiny: root.width < 360px;
                                 clicked => {
                                     root.launch-app(app.id);
                                 }

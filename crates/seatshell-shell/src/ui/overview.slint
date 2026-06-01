@@ -16,8 +16,10 @@ export component Overview inherits FocusScope {
     in property <string> accent: "#4a90e2";
     in property <[UserSession]> sessions;
     in property <string> status-text;
+    in property <bool> phone: root.width < 520px;
     in property <bool> compact: root.width < 860px;
-    in property <bool> wide: root.width >= 1120px;
+    in property <bool> short: root.height < 560px;
+    in property <bool> wide: root.width >= 1120px && !root.short;
     callback move-selection(int);
     callback activate-current-session();
     callback close();
@@ -70,7 +72,9 @@ export component Overview inherits FocusScope {
             spacing: 12px;
 
             Rectangle {
-                height: root.compact ? 168px : 128px;
+                height: root.compact
+                    ? root.short ? 136px : 168px
+                    : root.short ? 104px : 128px;
                 background: transparent;
 
                 if !root.compact: HorizontalLayout {
@@ -96,7 +100,7 @@ export component Overview inherits FocusScope {
                             wrap: word-wrap;
                         }
 
-                        Text {
+                        if !root.short: Text {
                             text: root.status-text;
                             color: ShellTheme.text-muted;
                             font-size: 11px;
@@ -146,7 +150,7 @@ export component Overview inherits FocusScope {
                         wrap: word-wrap;
                     }
 
-                    Text {
+                    if !root.short: Text {
                         text: root.status-text;
                         color: ShellTheme.text-muted;
                         font-size: 11px;
@@ -159,21 +163,24 @@ export component Overview inherits FocusScope {
                         ShellPill {
                             label: root.sessions.length + " sessions";
                             compact: true;
+                            tiny: root.phone;
                         }
 
                         ShellAction {
-                            label: "Activate";
+                            label: root.phone ? "" : "Activate";
                             icon-name: "command";
                             compact: true;
+                            tiny: root.phone;
                             clicked => {
                                 root.activate-current-session();
                             }
                         }
 
                         ShellAction {
-                            label: "Close";
+                            label: root.phone ? "" : "Close";
                             icon-name: "close";
                             compact: true;
+                            tiny: root.phone;
                             clicked => {
                                 root.close();
                             }
@@ -324,6 +331,8 @@ export component Overview inherits FocusScope {
                                     locked: session.locked;
                                     current: session.current;
                                     accent: root.accent;
+                                    compact: root.compact;
+                                    tiny: root.width < 380px;
                                 }
                             }
                         }
@@ -400,6 +409,8 @@ export component Overview inherits FocusScope {
                                 locked: session.locked;
                                 current: session.current;
                                 accent: root.accent;
+                                compact: root.compact;
+                                tiny: root.width < 380px;
                             }
                         }
                     }

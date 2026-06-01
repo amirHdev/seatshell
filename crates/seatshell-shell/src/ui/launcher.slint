@@ -22,7 +22,7 @@ export component Launcher inherits Rectangle {
     in property <string> query;
     in property <int> app-count;
     in property <bool> compact: root.width < 760px;
-    in property <bool> wide: root.width >= 1020px;
+    in property <bool> wide: root.width >= 1020px && root.height >= 620px;
 
     callback launch-app(string);
     callback search-changed(string);
@@ -247,6 +247,8 @@ export component Launcher inherits Rectangle {
                                         favorite: app.favorite;
                                         running-count: app.running_count;
                                         accent: root.accent;
+                                        compact: root.compact;
+                                        tiny: root.width < 420px;
                                         show-favorite-toggle: true;
                                         clicked => {
                                             root.launch-app(app.id);
@@ -279,6 +281,8 @@ export component Launcher inherits Rectangle {
                                         favorite: app.favorite;
                                         running-count: app.running_count;
                                         accent: root.accent;
+                                        compact: root.compact;
+                                        tiny: root.width < 420px;
                                         clicked => {
                                             root.launch-app(app.id);
                                         }
@@ -362,6 +366,8 @@ export component Launcher inherits Rectangle {
                                     running-count: app.running_count;
                                     show-favorite-toggle: true;
                                     accent: root.accent;
+                                    compact: root.compact;
+                                    tiny: root.width < 420px;
                                     clicked => {
                                         root.launch-app(app.id);
                                     }
@@ -427,6 +433,8 @@ export component Launcher inherits Rectangle {
                                         favorite: app.favorite;
                                         running-count: app.running_count;
                                         accent: root.accent;
+                                        compact: root.compact;
+                                        tiny: root.width < 420px;
                                         show-favorite-toggle: true;
                                         clicked => {
                                             root.launch-app(app.id);
@@ -459,6 +467,8 @@ export component Launcher inherits Rectangle {
                                         favorite: app.favorite;
                                         running-count: app.running_count;
                                         accent: root.accent;
+                                        compact: root.compact;
+                                        tiny: root.width < 420px;
                                         clicked => {
                                             root.launch-app(app.id);
                                         }
@@ -527,6 +537,8 @@ export component Launcher inherits Rectangle {
                                 running-count: app.running_count;
                                 show-favorite-toggle: true;
                                 accent: root.accent;
+                                compact: root.compact;
+                                tiny: root.width < 420px;
                                 clicked => {
                                     root.launch-app(app.id);
                                 }

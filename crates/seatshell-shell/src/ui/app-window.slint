@@ -5,6 +5,9 @@ import { Launcher, LauncherApp } from "launcher.slint";
 import { NotificationCenter, NotificationEntry } from "notification-center.slint";
 import { Overview, UserSession } from "overview.slint";
 import { DesktopFile, DesktopShortcutEntry } from "desktop.slint";
+import { PowerMenu } from "power-menu.slint";
+import { SettingsPage } from "settings.slint";
+import { SystemCenter } from "system-center.slint";
 import { ShellTheme } from "shell-theme.slint";
 
 export component AppWindow inherits Window {
@@ -39,6 +42,9 @@ export component AppWindow inherits Window {
     in-out property <bool> show-overview: false;
     in-out property <bool> show-command-surface: false;
     in-out property <bool> show-notifications: false;
+    in-out property <bool> show-system-center: false;
+    in-out property <bool> show-settings: false;
+    in-out property <bool> show-power-menu: false;
     in property <bool> overview-enabled: true;
 
     callback toggle-launcher();
@@ -47,6 +53,7 @@ export component AppWindow inherits Window {
     callback launch-app(string);
     callback toggle-command-surface();
     callback toggle-notifications();
+    callback request-shell-action(string);
     callback toggle-network();
     callback volume-down();
     callback volume-up();
@@ -88,6 +95,7 @@ export component AppWindow inherits Window {
             show-launcher: root.show-launcher;
             show-overview: root.show-overview;
             show-notifications: root.show-notifications;
+            show-system-center: root.show-system-center;
             show-user-switcher: root.show-user-switcher;
             show-desktop => {
                 root.show-desktop();
@@ -102,6 +110,11 @@ export component AppWindow inherits Window {
             }
             toggle-notifications => {
                 root.toggle-notifications();
+            }
+            toggle-system-center => {
+                root.show-system-center = !root.show-system-center;
+                root.show-notifications = false;
+                root.show-power-menu = false;
             }
             toggle-network => {
                 root.toggle-network();
@@ -124,7 +137,18 @@ export component AppWindow inherits Window {
             background: ShellTheme.background;
             vertical-stretch: 1;
 
-            if show-overview: Overview {
+            if show-settings: SettingsPage {
+                network-text: root.network-text;
+                audio-text: root.audio-text;
+                power-text: root.power-text;
+                theme-name: root.theme-name;
+                session-count: root.session-count;
+                close => {
+                    root.show-settings = false;
+                }
+            }
+
+            if !show-settings && show-overview: Overview {
                 accent: root.accent;
                 sessions: root.user-sessions;
                 status-text: root.status-text;
@@ -139,7 +163,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            if show-launcher: Launcher {
+            if !show-settings && show-launcher: Launcher {
                 accent: root.accent;
                 apps: root.launcher-apps;
                 featured-apps: root.featured-apps;
@@ -166,7 +190,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            if !show-overview && !show-launcher: Desktop {
+            if !show-settings && !show-overview && !show-launcher: Desktop {
                 accent: root.accent;
                 clock-text: root.clock-text;
                 status-text: root.status-text;
@@ -208,7 +232,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            if !show-overview && !show-launcher && show-command-surface: CommandSurface {
+            if !show-settings && !show-overview && !show-launcher && show-command-surface: CommandSurface {
                 accent: root.accent;
                 overview-enabled: root.overview-enabled;
                 featured-apps: root.featured-apps;
@@ -231,6 +255,49 @@ export component AppWindow inherits Window {
                 }
             }
 
+            if show-system-center: SystemCenter {
+                clock-text: root.clock-text;
+                network-text: root.network-text;
+                power-text: root.power-text;
+                audio-text: root.audio-text;
+                user-name: root.user-name;
+                notification-count: root.notification-count;
+                session-count: root.session-count;
+                close => {
+                    root.show-system-center = false;
+                }
+                toggle-network => {
+                    root.toggle-network();
+                }
+                volume-down => {
+                    root.volume-down();
+                }
+                volume-up => {
+                    root.volume-up();
+                }
+                toggle-mute => {
+                    root.toggle-mute();
+                }
+                open-notifications => {
+                    root.show-system-center = false;
+                    root.toggle-notifications();
+                }
+                open-settings => {
+                    root.show-system-center = false;
+                    root.show-settings = true;
+                }
+                open-power-menu => {
+                    root.show-system-center = false;
+                    root.show-power-menu = true;
+                }
+                open-overview => {
+                    root.show-system-center = false;
+                    if root.overview-enabled {
+                        root.toggle-overview();
+                    }
+                }
+            }
+
             if show-notifications: NotificationCenter {
                 notifications: root.notifications;
                 clear-all => {
@@ -241,6 +308,17 @@ export component AppWindow inherits Window {
                 }
                 close => {
                     root.toggle-notifications();
+                }
+            }
+
+            if show-power-menu: PowerMenu {
+                user-name: root.user-name;
+                close => {
+                    root.show-power-menu = false;
+                }
+                request-action(action) => {
+                    root.show-power-menu = false;
+                    root.request-shell-action(action);
                 }
             }
         }
@@ -260,6 +338,7 @@ export component AppWindow inherits Window {
             show-launcher: root.show-launcher;
             show-overview: root.show-overview;
             show-notifications: root.show-notifications;
+            show-system-center: root.show-system-center;
             show-user-switcher: root.show-user-switcher;
             show-desktop => {
                 root.show-desktop();
@@ -274,6 +353,11 @@ export component AppWindow inherits Window {
             }
             toggle-notifications => {
                 root.toggle-notifications();
+            }
+            toggle-system-center => {
+                root.show-system-center = !root.show-system-center;
+                root.show-notifications = false;
+                root.show-power-menu = false;
             }
             toggle-network => {
                 root.toggle-network();

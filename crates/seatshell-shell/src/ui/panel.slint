@@ -16,15 +16,18 @@ export component Panel inherits Rectangle {
     in property <bool> show-launcher: false;
     in property <bool> show-overview: false;
     in property <bool> show-notifications: false;
+    in property <bool> show-system-center: false;
     in property <bool> show-user-switcher: true;
 
-    in property <bool> phone: root.width < 560px;
-    in property <bool> narrow: root.width < 820px;
+    in property <bool> micro: root.width < 420px;
+    in property <bool> phone: root.width < 620px;
+    in property <bool> narrow: root.width < 900px;
     in property <bool> compact: root.width < 1180px;
 
     callback toggle-launcher();
     callback toggle-overview();
     callback toggle-notifications();
+    callback toggle-system-center();
     callback toggle-network();
     callback volume-down();
     callback volume-up();
@@ -43,13 +46,13 @@ export component Panel inherits Rectangle {
         alignment: center;
 
         Rectangle {
-            width: root.phone ? 38px : 54px;
+            width: root.micro ? 34px : root.phone ? 38px : 54px;
             height: parent.height;
             background: transparent;
 
             Rectangle {
-                width: root.phone ? 32px : 36px;
-                height: root.phone ? 32px : 36px;
+                width: root.micro ? 30px : root.phone ? 32px : 36px;
+                height: root.micro ? 30px : root.phone ? 32px : 36px;
                 x: 0px;
                 y: (parent.height - self.height) / 2;
                 background: ShellTheme.accent;
@@ -81,8 +84,8 @@ export component Panel inherits Rectangle {
             clip: true;
 
             Rectangle {
-                width: min(parent.width, root.phone ? 214px : root.narrow ? 300px : 460px);
-                height: root.phone ? 44px : 52px;
+                width: min(parent.width, root.micro ? 112px : root.phone ? 180px : root.narrow ? 300px : 460px);
+                height: root.phone ? 42px : 52px;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
                 background: #101823c8;
@@ -92,8 +95,8 @@ export component Panel inherits Rectangle {
                 clip: true;
 
                 HorizontalLayout {
-                    padding-left: root.phone ? 6px : 10px;
-                    padding-right: root.phone ? 6px : 10px;
+                    padding-left: root.micro ? 4px : root.phone ? 6px : 10px;
+                    padding-right: root.micro ? 4px : root.phone ? 6px : 10px;
                     spacing: root.phone ? 4px : 8px;
                     alignment: center;
 
@@ -119,7 +122,7 @@ export component Panel inherits Rectangle {
                         }
                     }
 
-                    if root.show-user-switcher && !root.phone: DockItem {
+                    if root.show-user-switcher && !root.narrow: DockItem {
                         label: "";
                         icon-name: "sessions";
                         active: root.show-overview;
@@ -137,6 +140,8 @@ export component Panel inherits Rectangle {
                         running-count: app.running_count;
                         compact: true;
                         tiny: root.phone;
+                        visible: !root.narrow;
+                        width: root.narrow ? 0px : 38px;
                         clicked => {
                             root.launch-app(app.id);
                         }
@@ -146,7 +151,7 @@ export component Panel inherits Rectangle {
         }
 
         Rectangle {
-            width: root.phone ? 86px : root.narrow ? 118px : 204px;
+            width: root.micro ? 100px : root.phone ? 112px : root.compact ? 208px : 292px;
             height: parent.height;
             background: transparent;
 
@@ -167,7 +172,7 @@ export component Panel inherits Rectangle {
                     spacing: 4px;
                     alignment: center;
 
-                    if !root.narrow: ShellAction {
+                    if !root.compact: ShellAction {
                         label: "";
                         icon-name: "network";
                         quiet: true;
@@ -177,7 +182,7 @@ export component Panel inherits Rectangle {
                         }
                     }
 
-                    if !root.narrow: ShellAction {
+                    if !root.compact: ShellAction {
                         label: "";
                         icon-name: "audio";
                         quiet: true;
@@ -195,6 +200,18 @@ export component Panel inherits Rectangle {
                         compact: true;
                         clicked => {
                             root.toggle-notifications();
+                        }
+                    }
+
+                    ShellAction {
+                        label: "";
+                        icon-name: "settings";
+                        active: root.show-system-center;
+                        quiet: true;
+                        compact: true;
+                        tiny: root.phone;
+                        clicked => {
+                            root.toggle-system-center();
                         }
                     }
 

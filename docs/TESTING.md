@@ -30,6 +30,7 @@ cargo run -p seatshell-shell -- --windowed
 Use that run to verify:
 
 - the desktop, panel, launcher, overview, command surface, and notifications all render cleanly
+- system center, settings, and power-menu scaffolds render cleanly
 - resizing the window does not produce clipped text, broken spacing, or collapsed action rows
 - launcher search, app selection, pinned-app toggles, and overview keyboard movement still work
 - empty states are readable when no apps or sessions are available
@@ -92,4 +93,22 @@ Launcher development app discovery can be tested with:
 ```sh
 mkdir -p resources/applications
 cargo run -p seatshell-shell -- --launcher
+```
+
+Individual shell surfaces can be opened directly for windowed UI checks:
+
+```sh
+cargo run -p seatshell-shell -- --windowed --system-center
+cargo run -p seatshell-shell -- --windowed --settings
+cargo run -p seatshell-shell -- --windowed --power-menu
+```
+
+Use `--window-size=<width>x<height>` with `--windowed` to exercise responsive
+breakpoints without manually resizing the host window:
+
+```sh
+cargo run -p seatshell-shell -- --windowed --window-size=280x480 --settings
+cargo run -p seatshell-shell -- --windowed --window-size=390x720 --launcher
+cargo run -p seatshell-shell -- --windowed --window-size=768x560 --settings
+cargo run -p seatshell-shell -- --windowed --window-size=1440x500 --system-center
 ```

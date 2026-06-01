@@ -1,0 +1,280 @@
+import { ShellTheme } from "shell-theme.slint";
+import { ShellAction, ShellIcon, ShellPill } from "shell-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
+
+component SettingRow inherits Rectangle {
+    in property <string> title;
+    in property <string> detail;
+    in property <string> value;
+    in property <string> icon-name;
+    in property <bool> compact: false;
+    in property <bool> tiny: false;
+
+    height: root.tiny ? 50px : root.compact ? 56px : 64px;
+    horizontal-stretch: 1;
+    background: touch.has-hover ? #ffffff10 : #ffffff08;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #ffffff18;
+
+    touch := TouchArea {}
+
+    HorizontalLayout {
+        padding: root.tiny ? 7px : root.compact ? 9px : 12px;
+        spacing: root.tiny ? 7px : root.compact ? 9px : 12px;
+        alignment: center;
+
+        Rectangle {
+            width: root.tiny ? 26px : root.compact ? 30px : 34px;
+            height: root.tiny ? 26px : root.compact ? 30px : 34px;
+            background: #ffffff10;
+            border-radius: 10px;
+
+            ShellIcon {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 18px;
+                height: 18px;
+                name: root.icon-name;
+                icon-color: ShellTheme.text-secondary;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.title;
+                color: ShellTheme.text-primary;
+                font-size: 12px;
+                font-weight: 800;
+            }
+
+            if !root.compact && !root.tiny: Text {
+                text: root.detail;
+                color: ShellTheme.text-muted;
+                font-size: 10px;
+                overflow: elide;
+            }
+        }
+
+        ShellPill {
+            label: root.value;
+            compact: true;
+            tiny: root.compact || root.tiny;
+        }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    in property <string> network-text;
+    in property <string> audio-text;
+    in property <string> power-text;
+    in property <string> theme-name;
+    in property <int> session-count;
+    in property <bool> compact: root.width < 760px;
+    in property <bool> phone: root.width < 520px;
+    in property <bool> short: root.height < 620px;
+    callback close();
+
+    background: ShellTheme.background;
+
+    Rectangle {
+        x: -80px;
+        y: 24px;
+        width: 260px;
+        height: 260px;
+        background: ShellTheme.ambient-primary;
+        border-radius: 999px;
+        opacity: 0.18;
+    }
+
+    Rectangle {
+        x: parent.width - 240px;
+        y: parent.height - 240px;
+        width: 280px;
+        height: 280px;
+        background: ShellTheme.ambient-secondary;
+        border-radius: 999px;
+        opacity: 0.16;
+    }
+
+    VerticalLayout {
+        padding: root.phone ? 10px : 16px;
+        spacing: root.phone ? 8px : 12px;
+
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: center;
+
+            if !root.phone: Rectangle {
+                width: 38px;
+                height: 38px;
+                background: ShellTheme.surface-accent;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: ShellTheme.accent;
+
+                ShellIcon {
+                    x: 10px;
+                    y: 10px;
+                    width: 18px;
+                    height: 18px;
+                    name: "settings";
+                    icon-color: ShellTheme.text-accent;
+                }
+            }
+
+            VerticalLayout {
+                spacing: 2px;
+                horizontal-stretch: 1;
+
+                Text {
+                    text: "Settings";
+                    color: ShellTheme.text-primary;
+                    font-size: 20px;
+                    font-weight: 800;
+                }
+
+                Text {
+                    text: "System configuration scaffold";
+                    color: ShellTheme.text-muted;
+                    font-size: 11px;
+                }
+            }
+
+            ShellAction {
+                label: root.phone ? "" : "Close";
+                icon-name: "close";
+                compact: true;
+                clicked => {
+                    root.close();
+                }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: #ffffff18;
+        }
+
+        HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 12px;
+
+            if !root.compact && !root.short: Rectangle {
+                width: min(230px, parent.width * 0.28);
+                background: #ffffff08;
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: #ffffff18;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 6px;
+
+                    Text {
+                        text: "System";
+                        color: ShellTheme.text-muted;
+                        font-size: 10px;
+                        font-weight: 800;
+                    }
+
+                    ShellAction { label: "Overview"; icon-name: "settings"; compact: true; active: true; fill: true; }
+                    ShellAction { label: "Network"; icon-name: "network"; compact: true; fill: true; }
+                    ShellAction { label: "Sound"; icon-name: "audio"; compact: true; fill: true; }
+                    ShellAction { label: "Displays"; icon-name: "display"; compact: true; fill: true; }
+                    ShellAction { label: "Appearance"; icon-name: "brightness"; compact: true; fill: true; }
+                    ShellAction { label: "Users"; icon-name: "sessions"; compact: true; fill: true; }
+                    ShellAction { label: "Privacy"; icon-name: "shield"; compact: true; fill: true; }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: #ffffff08;
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: #ffffff18;
+
+                ScrollView {
+                    viewport-width: self.width;
+
+                    VerticalLayout {
+                        padding: root.phone ? 10px : 14px;
+                        spacing: root.phone ? 8px : 10px;
+
+                        Text {
+                            text: "System overview";
+                            color: ShellTheme.text-primary;
+                            font-size: 16px;
+                            font-weight: 800;
+                        }
+
+                        Text {
+                            text: "Desktop settings structure. Backend-specific controls can be connected incrementally.";
+                            color: ShellTheme.text-secondary;
+                            font-size: 11px;
+                            wrap: word-wrap;
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Network";
+                            detail: "NetworkManager status and connectivity";
+                            value: root.network-text;
+                            icon-name: "network";
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Sound";
+                            detail: "Default output device and volume";
+                            value: root.audio-text;
+                            icon-name: "audio";
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Displays";
+                            detail: "Monitor layout, scale, and refresh rate";
+                            value: "Scaffold";
+                            icon-name: "display";
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Appearance";
+                            detail: "Wallpaper, theme, and shell preferences";
+                            value: root.theme-name;
+                            icon-name: "brightness";
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Users and sessions";
+                            detail: "Local seat visibility and session policy";
+                            value: root.session-count + " sessions";
+                            icon-name: "sessions";
+                        }
+
+                        SettingRow {
+                            compact: root.phone;
+                            tiny: root.width < 380px;
+                            title: "Power";
+                            detail: "Battery, suspend, and shutdown behavior";
+                            value: root.power-text;
+                            icon-name: "power";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

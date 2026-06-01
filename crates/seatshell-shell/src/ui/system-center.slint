@@ -1,0 +1,357 @@
+import { ShellTheme } from "shell-theme.slint";
+import { ShellAction, ShellIcon, ShellPill } from "shell-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
+
+component StatusTile inherits Rectangle {
+    in property <string> title;
+    in property <string> value;
+    in property <string> icon-name;
+    in property <bool> active: false;
+    in property <bool> compact: false;
+    callback clicked();
+
+    height: root.compact ? 60px : 72px;
+    horizontal-stretch: 1;
+    background: touch.has-hover ? #ffffff13 : root.active ? ShellTheme.surface-accent : #ffffff0b;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: root.active ? ShellTheme.accent : #ffffff1c;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding: root.compact ? 9px : 12px;
+        spacing: root.compact ? 8px : 10px;
+        alignment: center;
+
+        Rectangle {
+            width: root.compact ? 30px : 36px;
+            height: root.compact ? 30px : 36px;
+            background: root.active ? ShellTheme.accent : #ffffff10;
+            border-radius: 10px;
+
+            ShellIcon {
+                width: root.compact ? 16px : 18px;
+                height: root.compact ? 16px : 18px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                name: root.icon-name;
+                icon-color: root.active ? #1a120d : ShellTheme.text-primary;
+            }
+        }
+
+        VerticalLayout {
+            spacing: 2px;
+            horizontal-stretch: 1;
+
+            Text {
+                text: root.title;
+                color: ShellTheme.text-primary;
+                font-size: root.compact ? 11px : 12px;
+                font-weight: 800;
+            }
+
+            if !root.compact: Text {
+                text: root.value;
+                color: ShellTheme.text-muted;
+                font-size: 10px;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+export component SystemCenter inherits Rectangle {
+    in property <string> clock-text;
+    in property <string> network-text;
+    in property <string> power-text;
+    in property <string> audio-text;
+    in property <string> user-name;
+    in property <int> notification-count;
+    in property <int> session-count;
+    in property <bool> compact: root.width < 360px || root.height < 560px;
+
+    callback close();
+    callback toggle-network();
+    callback volume-down();
+    callback volume-up();
+    callback toggle-mute();
+    callback open-notifications();
+    callback open-settings();
+    callback open-power-menu();
+    callback open-overview();
+
+    background: transparent;
+
+    TouchArea {
+        clicked => {
+            root.close();
+        }
+    }
+
+    Rectangle {
+        x: max(12px, root.width - min(390px, root.width - 24px) - 12px);
+        y: max(12px, root.height - min(520px, root.height - 24px) - 12px);
+        width: min(390px, root.width - 24px);
+        height: min(520px, root.height - 24px);
+        background: #0b1420f2;
+        border-radius: 20px;
+        border-width: 1px;
+        border-color: #ffffff28;
+
+        VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                VerticalLayout {
+                    spacing: 2px;
+                    horizontal-stretch: 1;
+
+                    Text {
+                        text: root.clock-text;
+                        color: ShellTheme.text-primary;
+                        font-size: 19px;
+                        font-weight: 800;
+                    }
+
+                    Text {
+                        text: root.user-name + "  •  " + root.power-text;
+                        color: ShellTheme.text-muted;
+                        font-size: 10px;
+                        overflow: elide;
+                    }
+                }
+
+                ShellAction {
+                    label: "";
+                    icon-name: "settings";
+                    compact: true;
+                    clicked => {
+                        root.open-settings();
+                    }
+                }
+
+                ShellAction {
+                    label: "";
+                    icon-name: "power";
+                    compact: true;
+                    clicked => {
+                        root.open-power-menu();
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: #ffffff18;
+            }
+
+            ScrollView {
+                vertical-stretch: 1;
+                viewport-width: self.width;
+
+                VerticalLayout {
+                    spacing: 10px;
+
+                    if !root.compact: HorizontalLayout {
+                        spacing: 8px;
+
+                        StatusTile {
+                            horizontal-stretch: 1;
+                            compact: root.width < 400px;
+                            title: "Network";
+                            value: root.network-text;
+                            icon-name: "network";
+                            active: root.network-text != "NET OFF";
+                            clicked => {
+                                root.toggle-network();
+                            }
+                        }
+
+                        StatusTile {
+                            horizontal-stretch: 1;
+                            compact: root.width < 400px;
+                            title: "Sound";
+                            value: root.audio-text;
+                            icon-name: "audio";
+                            active: root.audio-text != "MUTED";
+                            clicked => {
+                                root.toggle-mute();
+                            }
+                        }
+                    }
+
+                    if root.compact: VerticalLayout {
+                        spacing: 8px;
+
+                        StatusTile {
+                            title: "Network";
+                            value: root.network-text;
+                            icon-name: "network";
+                            active: root.network-text != "NET OFF";
+                            clicked => {
+                                root.toggle-network();
+                            }
+                        }
+
+                        StatusTile {
+                            title: "Sound";
+                            value: root.audio-text;
+                            icon-name: "audio";
+                            active: root.audio-text != "MUTED";
+                            clicked => {
+                                root.toggle-mute();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 84px;
+                        background: #ffffff08;
+                        border-radius: 14px;
+                        border-width: 1px;
+                        border-color: #ffffff18;
+
+                        VerticalLayout {
+                            padding: 12px;
+                            spacing: 8px;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+
+                                ShellIcon {
+                                    width: 16px;
+                                    height: 16px;
+                                    name: "audio";
+                                    icon-color: ShellTheme.text-secondary;
+                                }
+
+                                Text {
+                                    text: "Volume";
+                                    color: ShellTheme.text-primary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                    horizontal-stretch: 1;
+                                }
+
+                                ShellPill {
+                                    label: root.audio-text;
+                                    compact: true;
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+
+                                ShellAction {
+                                    label: "Lower";
+                                    icon-text: "-";
+                                    compact: true;
+                                    fill: true;
+                                    clicked => {
+                                        root.volume-down();
+                                    }
+                                }
+
+                                ShellAction {
+                                    label: "Raise";
+                                    icon-text: "+";
+                                    compact: true;
+                                    fill: true;
+                                    clicked => {
+                                        root.volume-up();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 62px;
+                        background: #ffffff08;
+                        border-radius: 14px;
+                        border-width: 1px;
+                        border-color: #ffffff18;
+
+                        HorizontalLayout {
+                            padding: 12px;
+                            spacing: 10px;
+                            alignment: center;
+
+                            ShellIcon {
+                                width: 18px;
+                                height: 18px;
+                                name: "brightness";
+                                icon-color: ShellTheme.text-secondary;
+                            }
+
+                            VerticalLayout {
+                                spacing: 3px;
+                                horizontal-stretch: 1;
+
+                                Text {
+                                    text: "Brightness";
+                                    color: ShellTheme.text-primary;
+                                    font-size: 12px;
+                                    font-weight: 700;
+                                }
+
+                                Rectangle {
+                                    height: 5px;
+                                    background: #ffffff18;
+                                    border-radius: 999px;
+
+                                    Rectangle {
+                                        width: parent.width * 0.68;
+                                        height: parent.height;
+                                        background: ShellTheme.accent;
+                                        border-radius: 999px;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: #ffffff18;
+                    }
+
+                    ShellAction {
+                        label: root.notification-count > 0
+                            ? root.notification-count + " notifications"
+                            : "Notifications";
+                        icon-name: "notifications";
+                        compact: true;
+                        fill: true;
+                        clicked => {
+                            root.open-notifications();
+                        }
+                    }
+
+                    ShellAction {
+                        label: root.session-count + " local sessions";
+                        icon-name: "sessions";
+                        compact: true;
+                        fill: true;
+                        clicked => {
+                            root.open-overview();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -80,6 +80,15 @@ Important surfaces include:
 - `command-surface.slint`
   A lightweight quick-action overlay
 
+- `system-center.slint`
+  Quick settings for network, sound, brightness scaffold, notifications, and sessions
+
+- `settings.slint`
+  A desktop settings scaffold for system integration work
+
+- `power-menu.slint`
+  Session and power-action scaffolds that remain non-operative until privileged Linux services are connected
+
 Shared colors, spacing, and shape primitives are centralized in:
 
 - `shell-theme.slint`
@@ -93,6 +102,12 @@ The shell's Rust `main.rs` acts as the orchestration layer that:
 - polls clock and lightweight system status
 - mirrors notification-store state into the UI
 - listens for remote shell commands over D-Bus
+
+The shell can route directly to scaffold surfaces for development and future compositor bindings:
+
+- `seatshell-shell --system-center`
+- `seatshell-shell --settings`
+- `seatshell-shell --power-menu`
 
 ## D-Bus Boundaries
 
@@ -128,6 +143,8 @@ Methods currently implemented include:
 - bus name: `org.seatshell.Shell`
 - object path: `/org/seatshell/Shell`
 - current scope: view toggles and notification intake
+
+View methods include desktop, launcher, overview, notifications, system center, settings, and power-menu routing. Power actions exposed by the scaffold do not perform privileged mutations yet.
 
 ## Security Model
 

@@ -11,6 +11,7 @@ export struct NotificationEntry {
 
 export component NotificationCenter inherits Rectangle {
     in property <[NotificationEntry]> notifications;
+    in property <bool> compact: root.width < 440px;
     callback clear-all();
     callback dismiss-notification(int);
     callback close();
@@ -46,7 +47,7 @@ export component NotificationCenter inherits Rectangle {
                         font-weight: 800;
                     }
 
-                    Text {
+                    if !root.compact: Text {
                         text: "Recent system activity";
                         color: ShellTheme.text-secondary;
                         font-size: 12px;
@@ -59,7 +60,7 @@ export component NotificationCenter inherits Rectangle {
                 }
 
                 ShellAction {
-                    label: "Clear";
+                    label: root.compact ? "" : "Clear";
                     icon-text: "-";
                     compact: true;
                     clicked => {

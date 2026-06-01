@@ -17,6 +17,7 @@ The completed UI pass resolves these concrete issues:
 - seat rows visually distinguish current, locked, inactive, and selected states
 - supported icon formats are filtered before Slint loads them, with consistent glyph medallions as fallback
 - shared controls now use short hover/state transitions
+- system center, settings, and power-menu scaffolds establish the next shell integration surfaces without pretending privileged actions already work
 
 ## Resolved problem map
 
@@ -58,6 +59,11 @@ The completed UI pass resolves these concrete issues:
 ### 9. Responsive behavior
 
 - Resolved for the windowed UI: desktop, launcher, overview, panel, and shortcut placement have explicit compact, medium, and wide behavior.
+
+### 10. Shell scaffolds
+
+- Resolved for the UI layer: quick settings, settings, and session/power surfaces are reachable from the panel and direct shell routes.
+- Privileged lock, sign-out, restart, and power-off actions remain explicit scaffolds until the authorized Linux service is connected.
 
 ## Linux integration follow-up
 

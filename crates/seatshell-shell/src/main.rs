@@ -34,6 +34,7 @@ fn main() -> Result<()> {
 
     let args = std::env::args().collect::<Vec<_>>();
     let windowed = args.iter().any(|arg| arg == "--windowed");
+    let requested_window_size = requested_window_size(&args);
     let requested_view = requested_view(&args);
 
     if request_remote_view(requested_view)? {
@@ -117,6 +118,10 @@ fn main() -> Result<()> {
         requested_view,
         ShellView::Overview | ShellView::ToggleOverview
     ));
+    ui.set_show_notifications(matches!(requested_view, ShellView::Notifications));
+    ui.set_show_system_center(matches!(requested_view, ShellView::SystemCenter));
+    ui.set_show_settings(matches!(requested_view, ShellView::Settings));
+    ui.set_show_power_menu(matches!(requested_view, ShellView::PowerMenu));
     ui.set_windowed(windowed);
     ui.set_panel_on_top(matches!(config.panel.position, PanelPosition::Top));
     ui.set_show_user_switcher(config.panel.show_user_switcher && config.overview.enabled);
@@ -125,6 +130,20 @@ fn main() -> Result<()> {
     ui.set_app_count(apps.len() as i32);
     ui.set_session_count(sessions.len() as i32);
     ui.set_user_name(current_username().into());
+    let resize_timer = Timer::default();
+    if windowed && let Some((width, height)) = requested_window_size {
+        let weak = ui.as_weak();
+        resize_timer.start(
+            TimerMode::SingleShot,
+            Duration::from_millis(150),
+            move || {
+                if let Some(ui) = weak.upgrade() {
+                    ui.window()
+                        .set_size(slint::PhysicalSize::new(width, height));
+                }
+            },
+        );
+    }
 
     let weak = ui.as_weak();
     let clock_timer = Timer::default();
@@ -167,35 +186,83 @@ fn main() -> Result<()> {
                 ShellView::Launcher => {
                     ui.set_show_launcher(true);
                     ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::ToggleLauncher => {
                     ui.set_show_launcher(!ui.get_show_launcher());
                     ui.set_show_overview(false);
                     ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::Overview => {
                     ui.set_show_overview(true);
                     ui.set_show_launcher(false);
+                    ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::ToggleOverview => {
                     ui.set_show_overview(!ui.get_show_overview());
                     ui.set_show_launcher(false);
                     ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::Notifications => {
                     ui.set_show_notifications(true);
                     ui.set_show_launcher(false);
                     ui.set_show_overview(false);
                     ui.set_show_command_surface(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::Desktop => {
                     ui.set_show_launcher(false);
                     ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
+                }
+                ShellView::SystemCenter => {
+                    ui.set_show_system_center(true);
+                    ui.set_show_launcher(false);
+                    ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
+                    ui.set_show_notifications(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
+                }
+                ShellView::Settings => {
+                    ui.set_show_settings(true);
+                    ui.set_show_launcher(false);
+                    ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
+                    ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                }
+                ShellView::PowerMenu => {
+                    ui.set_show_power_menu(true);
+                    ui.set_show_launcher(false);
+                    ui.set_show_overview(false);
+                    ui.set_show_command_surface(false);
+                    ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_settings(false);
                 }
                 ShellView::None => {}
             }
@@ -207,7 +274,11 @@ fn main() -> Result<()> {
         if let Some(ui) = weak.upgrade() {
             ui.set_show_launcher(false);
             ui.set_show_overview(false);
+            ui.set_show_command_surface(false);
             ui.set_show_notifications(false);
+            ui.set_show_system_center(false);
+            ui.set_show_power_menu(false);
+            ui.set_show_settings(false);
         }
     });
 
@@ -218,6 +289,9 @@ fn main() -> Result<()> {
             ui.set_show_overview(false);
             ui.set_show_command_surface(false);
             ui.set_show_notifications(false);
+            ui.set_show_system_center(false);
+            ui.set_show_power_menu(false);
+            ui.set_show_settings(false);
         }
     });
 
@@ -228,6 +302,9 @@ fn main() -> Result<()> {
             ui.set_show_launcher(false);
             ui.set_show_command_surface(false);
             ui.set_show_notifications(false);
+            ui.set_show_system_center(false);
+            ui.set_show_power_menu(false);
+            ui.set_show_settings(false);
         }
     });
 
@@ -238,6 +315,9 @@ fn main() -> Result<()> {
             ui.set_show_launcher(false);
             ui.set_show_overview(false);
             ui.set_show_notifications(false);
+            ui.set_show_system_center(false);
+            ui.set_show_power_menu(false);
+            ui.set_show_settings(false);
         }
     });
 
@@ -250,6 +330,9 @@ fn main() -> Result<()> {
                 ui.set_show_launcher(false);
                 ui.set_show_overview(false);
                 ui.set_show_command_surface(false);
+                ui.set_show_system_center(false);
+                ui.set_show_power_menu(false);
+                ui.set_show_settings(false);
             }
         }
     });
@@ -265,6 +348,17 @@ fn main() -> Result<()> {
         let notifications = Arc::clone(&notifications);
         ui.on_dismiss_notification(move |id| {
             notifications.dismiss(id as u32);
+        });
+    }
+
+    {
+        let notifications = Arc::clone(&notifications);
+        ui.on_request_shell_action(move |action| {
+            notifications.push(Notification {
+                title: format!("{} is not connected yet", action),
+                body: "This scaffold is ready for the privileged Linux session service.".into(),
+                urgency: NotificationUrgency::Normal,
+            });
         });
     }
 
@@ -463,6 +557,9 @@ fn main() -> Result<()> {
                     ));
                     ui.set_show_launcher(false);
                     ui.set_show_notifications(false);
+                    ui.set_show_system_center(false);
+                    ui.set_show_power_menu(false);
+                    ui.set_show_settings(false);
                 }
             }
         });
@@ -501,6 +598,9 @@ fn main() -> Result<()> {
             ui.set_show_overview(false);
             ui.set_show_command_surface(false);
             ui.set_show_notifications(false);
+            ui.set_show_system_center(false);
+            ui.set_show_power_menu(false);
+            ui.set_show_settings(false);
         }
     });
 
@@ -698,6 +798,9 @@ enum ShellView {
     Notifications = 4,
     ToggleLauncher = 5,
     ToggleOverview = 6,
+    SystemCenter = 7,
+    Settings = 8,
+    PowerMenu = 9,
 }
 
 impl ShellView {
@@ -709,6 +812,9 @@ impl ShellView {
             4 => Self::Notifications,
             5 => Self::ToggleLauncher,
             6 => Self::ToggleOverview,
+            7 => Self::SystemCenter,
+            8 => Self::Settings,
+            9 => Self::PowerMenu,
             _ => Self::None,
         }
     }
@@ -820,6 +926,21 @@ impl ShellService {
             .store(ShellView::Notifications as u8, Ordering::SeqCst);
     }
 
+    async fn show_system_center(&self) {
+        self.commands
+            .store(ShellView::SystemCenter as u8, Ordering::SeqCst);
+    }
+
+    async fn show_settings(&self) {
+        self.commands
+            .store(ShellView::Settings as u8, Ordering::SeqCst);
+    }
+
+    async fn show_power_menu(&self) {
+        self.commands
+            .store(ShellView::PowerMenu as u8, Ordering::SeqCst);
+    }
+
     async fn post_notification(&self, title: &str, body: &str) {
         self.notifications.push(Notification {
             title: title.trim().to_string(),
@@ -908,9 +1029,23 @@ fn requested_view(args: &[String]) -> ShellView {
         .any(|arg| matches!(arg.as_str(), "--desktop" | "--show-desktop"))
     {
         ShellView::Desktop
+    } else if args.iter().any(|arg| arg == "--system-center") {
+        ShellView::SystemCenter
+    } else if args.iter().any(|arg| arg == "--settings") {
+        ShellView::Settings
+    } else if args.iter().any(|arg| arg == "--power-menu") {
+        ShellView::PowerMenu
     } else {
         ShellView::None
     }
+}
+
+fn requested_window_size(args: &[String]) -> Option<(u32, u32)> {
+    args.iter()
+        .find_map(|arg| arg.strip_prefix("--window-size="))
+        .and_then(|size| size.split_once('x'))
+        .and_then(|(width, height)| Some((width.parse::<u32>().ok()?, height.parse::<u32>().ok()?)))
+        .map(|(width, height)| (width.clamp(280, 3840), height.clamp(320, 2160)))
 }
 
 fn request_remote_view(view: ShellView) -> Result<bool> {
@@ -948,6 +1083,9 @@ fn request_remote_view(view: ShellView) -> Result<bool> {
             ShellView::Overview => shell::SHOW_OVERVIEW,
             ShellView::ToggleLauncher => shell::TOGGLE_LAUNCHER,
             ShellView::ToggleOverview => shell::TOGGLE_OVERVIEW,
+            ShellView::SystemCenter => shell::SHOW_SYSTEM_CENTER,
+            ShellView::Settings => shell::SHOW_SETTINGS,
+            ShellView::PowerMenu => shell::SHOW_POWER_MENU,
             ShellView::None => return Ok(false),
         };
 
@@ -2222,6 +2360,38 @@ fn current_sessions() -> Vec<UserSession> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn requested_view_routes_shell_scaffolds() {
+        assert_eq!(
+            requested_view(&["shell".into(), "--system-center".into()]),
+            ShellView::SystemCenter
+        );
+        assert_eq!(
+            requested_view(&["shell".into(), "--settings".into()]),
+            ShellView::Settings
+        );
+        assert_eq!(
+            requested_view(&["shell".into(), "--power-menu".into()]),
+            ShellView::PowerMenu
+        );
+    }
+
+    #[test]
+    fn requested_window_size_parses_and_bounds_windowed_smoke_dimensions() {
+        assert_eq!(
+            requested_window_size(&["shell".into(), "--window-size=390x720".into()]),
+            Some((390, 720))
+        );
+        assert_eq!(
+            requested_window_size(&["shell".into(), "--window-size=100x9000".into()]),
+            Some((280, 2160))
+        );
+        assert_eq!(
+            requested_window_size(&["shell".into(), "--window-size=broken".into()]),
+            None
+        );
+    }
 
     #[test]
     fn session_row_maps_locked_state_for_overview() {

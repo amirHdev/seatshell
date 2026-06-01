@@ -1,6 +1,7 @@
 import { LauncherApp } from "launcher.slint";
 import { ShellTheme } from "shell-theme.slint";
 import { ShellIcon, ShellPill } from "shell-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 
 export struct DesktopFile {
     path: string,
@@ -134,6 +135,7 @@ component RecentFileRow inherits Rectangle {
     callback clicked();
 
     height: 38px;
+    horizontal-stretch: 1;
     background: touch.has-hover ? #ffffff0f : transparent;
     border-radius: 9px;
 
@@ -264,13 +266,19 @@ export component Desktop inherits Rectangle {
 
     Rectangle {
         x: root.desktop ? 28px : 12px;
-        y: root.desktop ? 28px : (root.phone ? 142px : 292px);
+        y: root.desktop
+            ? 28px
+            : root.phone
+                ? 142px
+                : root.recent-files.length > 0
+                    ? 292px
+                    : 156px;
         width: root.desktop
             ? root.wide ? 276px : 236px
             : parent.width - 24px;
-        height: root.desktop
+        height: max(0px, root.desktop
             ? parent.height - 56px
-            : parent.height - self.y - 12px;
+            : parent.height - self.y - 12px);
         background: transparent;
         clip: true;
 
@@ -364,6 +372,7 @@ export component Desktop inherits Rectangle {
         border-radius: 20px;
         border-width: 1px;
         border-color: #ffffff22;
+        clip: true;
 
         VerticalLayout {
             padding: 12px;
@@ -376,12 +385,21 @@ export component Desktop inherits Rectangle {
                 font-weight: 700;
             }
 
-            for file in root.recent-files: RecentFileRow {
-                name: file.name;
-                detail: file.detail;
+            ScrollView {
+                vertical-stretch: 1;
+                viewport-width: self.width;
 
-                clicked => {
-                    root.open-file(file.path);
+                VerticalLayout {
+                    spacing: 4px;
+
+                    for file in root.recent-files: RecentFileRow {
+                        name: file.name;
+                        detail: file.detail;
+
+                        clicked => {
+                            root.open-file(file.path);
+                        }
+                    }
                 }
             }
         }

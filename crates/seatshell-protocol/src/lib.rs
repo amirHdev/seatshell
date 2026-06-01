@@ -36,6 +36,9 @@ pub mod shell {
     pub const SHOW_LAUNCHER: &str = "ShowLauncher";
     pub const SHOW_NOTIFICATIONS: &str = "ShowNotifications";
     pub const SHOW_OVERVIEW: &str = "ShowOverview";
+    pub const SHOW_SYSTEM_CENTER: &str = "ShowSystemCenter";
+    pub const SHOW_SETTINGS: &str = "ShowSettings";
+    pub const SHOW_POWER_MENU: &str = "ShowPowerMenu";
     pub const TOGGLE_LAUNCHER: &str = "ToggleLauncher";
     pub const TOGGLE_OVERVIEW: &str = "ToggleOverview";
     pub const POST_NOTIFICATION: &str = "PostNotification";
