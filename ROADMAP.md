@@ -106,8 +106,8 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 - [x] Move full app browsing into launcher/overlay surfaces so the desktop itself can prioritize workspace, active windows, files, and live system state
 - [ ] Replace static desktop mock objects with real desktop interactions
 - [x] Draggable desktop icons with saved positions across restarts
-- [ ] Snap-to-grid, auto-arrange, and collision rules for desktop items
-- [ ] Desktop selection model: single-select, marquee selection, and keyboard focus movement
+- [x] Snap-to-grid, auto-arrange, and collision rules for desktop items
+- [x] Desktop selection model: single-select, marquee selection, and keyboard focus movement
 - [ ] Desktop file objects that can be opened, highlighted, and handed off to default apps
 - [ ] Dock interaction parity with user expectations: focus, minimize/restore, running state, and active-window indication
 - [ ] Real active-window presence on the desktop surface instead of quiet-state placeholders when apps are running
@@ -157,8 +157,8 @@ Objective: bring the shell up to “serious project” standards.
 - [x] first-pass coherent spacing, color, and typography system
 - [ ] second-pass visual polish across all shell states and interactions
 - [ ] icon strategy beyond placeholder initials
-- [ ] Interaction polish for desktop manipulation: drag thresholds, drop affordances, hover feedback, and non-janky motion
-- [ ] Keyboard parity for desktop objects: selection, repositioning, launching, and context actions without a mouse
+- [x] Interaction polish for desktop manipulation: drag thresholds, drop affordances, hover feedback, and non-janky motion
+- [x] Keyboard parity for desktop objects: selection, repositioning, launching, and context actions without a mouse
 - [ ] focus rings and keyboard accessibility audit
 - [ ] high-DPI and scaling validation
 - [ ] localization-ready strings
@@ -237,10 +237,8 @@ Avoid:
 The next concrete engineering targets for this repository are:
 
 1. Validate display-manager session startup end to end on a real login manager
-2. Implement draggable desktop icons with persisted positions
-3. Add snap-to-grid and selection behavior so desktop objects feel reliable rather than decorative
-4. Add dock interaction parity for focus, minimize/restore, and running-state indication
-5. Add notification daemon integration beyond shell-local storage
-6. Start Phase 3 overview differentiation work for current, inactive, and locked sessions
-7. Add VM-based integration tests under `dbus-run-session`
-8. Add portal and polkit integration
+2. Add dock interaction parity for focus, minimize/restore, and running-state indication
+3. Add notification daemon integration beyond shell-local storage
+4. Start Phase 3 overview differentiation work for current, inactive, and locked sessions
+5. Add VM-based integration tests under `dbus-run-session`
+6. Add portal and polkit integration

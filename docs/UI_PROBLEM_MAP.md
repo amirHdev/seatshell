@@ -11,6 +11,9 @@ The shell now distinguishes what the UI can resolve locally from what requires c
 The completed UI pass resolves these concrete issues:
 
 - desktop shortcut positions are persisted, statically clamped, dynamically bounded to the live desktop lane, and clipped as a final guard
+- desktop shortcuts snap to collision-free grid cells, support deterministic auto-arrange, and recover cleanly from overlapping saved state
+- desktop shortcuts support single selection, marquee selection, arrow-key navigation, Ctrl-arrow repositioning, Ctrl+A selection, Ctrl+Shift+A arrangement, Enter launch, and Escape clear
+- drag operations expose a visible snap state before the resolved position is persisted
 - the panel is sized to its real controls instead of squeezing a 48-52 px dock into a 34-38 px bar
 - the desktop now preserves open wallpaper space instead of presenting a permanent dashboard
 - launcher and overview helper areas use quieter supporting surfaces instead of stacked tutorial cards
@@ -39,9 +42,10 @@ The completed UI pass resolves these concrete issues:
 
 - Resolved for the current runtime model: pinned and running apps stay visible in one taskbar without taking over the wallpaper or pretending to be live compositor windows.
 
-### 5. Desktop-object positioning
+### 5. Desktop-object positioning and selection
 
-- Resolved and regression-tested. Saved positions are clamped in Rust, live drop coordinates are bounded against the rendered lane, and the lane remains clipped.
+- Resolved and regression-tested. Saved positions are bounded and normalized in Rust, live drop coordinates are bounded against the rendered lane, collisions fall back to the nearest free grid cell, and the lane remains clipped.
+- Single selection, marquee selection, auto-arrange, spatial arrow navigation, group keyboard nudging, Enter launch, and Escape clear are connected to the same persisted layout model.
 
 ### 6. Wrapper chrome
 
@@ -54,7 +58,7 @@ The completed UI pass resolves these concrete issues:
 
 ### 8. Motion and interaction polish
 
-- Resolved for core hover and state transitions. Broader scene transitions and accessibility motion preferences remain a later polish pass.
+- Resolved for core hover, selection, drag, drop, and state transitions. Broader scene transitions and accessibility motion preferences remain a later polish pass.
 
 ### 9. Responsive behavior
 
@@ -71,4 +75,3 @@ The completed UI pass resolves these concrete issues:
 - Replace process-derived app presence with compositor window identity where available.
 - Add privacy-aware live previews in the Seat Overview.
 - Validate multi-monitor placement, scale factors, and full session behavior under Linux/labwc.
-- Add keyboard positioning and collision rules for desktop objects.

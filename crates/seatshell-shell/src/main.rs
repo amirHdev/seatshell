@@ -9,7 +9,7 @@ use seatshell_protocol::{
 use slint::{Image, ModelRc, Timer, TimerMode, VecModel};
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
     process::Stdio,
@@ -48,6 +48,8 @@ fn main() -> Result<()> {
     let running_counts = Rc::new(RefCell::new(current_running_app_counts(&apps)));
     let featured_apps = featured_or_favorite_apps(&apps, &favorite_ids, 6);
     let desktop_shortcut_positions = Rc::new(RefCell::new(load_desktop_shortcut_positions()));
+    let selected_desktop_shortcut_ids = Rc::new(RefCell::new(HashSet::new()));
+    let focused_desktop_shortcut_id = Rc::new(RefCell::new(None));
     let recent_ids = load_recent_app_ids();
     let recent_app_entries = recent_apps(&apps, &recent_ids, 6);
     let recent_files = recent_files(3);
@@ -89,6 +91,7 @@ fn main() -> Result<()> {
         &featured_apps,
         &running_counts.borrow(),
         &desktop_shortcut_positions.borrow(),
+        &selected_desktop_shortcut_ids.borrow(),
     ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(&apps, &favorite_ids, &running_counts.borrow(), 5),
@@ -477,6 +480,7 @@ fn main() -> Result<()> {
         let selected_app_id = Rc::clone(&selected_app_id);
         let running_counts = Rc::clone(&running_counts);
         let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
         let weak = ui.as_weak();
         let running_timer = Timer::default();
         running_timer.start(TimerMode::Repeated, Duration::from_secs(4), move || {
@@ -496,6 +500,7 @@ fn main() -> Result<()> {
                     selected_app_id.borrow().as_deref(),
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
                 );
             }
         });
@@ -612,6 +617,7 @@ fn main() -> Result<()> {
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let running_counts = Rc::clone(&running_counts);
         let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
         let weak = ui.as_weak();
         ui.on_move_launcher_selection(move |step| {
             *selected_app_id.borrow_mut() = move_selected_app_id(
@@ -654,6 +660,7 @@ fn main() -> Result<()> {
                     &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
                 ));
             }
         });
@@ -667,6 +674,7 @@ fn main() -> Result<()> {
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let running_counts = Rc::clone(&running_counts);
         let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
         let weak = ui.as_weak();
         ui.on_toggle_favorite_app(move |app_id| {
             toggle_favorite_app_id(&app_id, &favorite_app_ids);
@@ -705,6 +713,7 @@ fn main() -> Result<()> {
                     &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
                 ));
             }
         });
@@ -715,16 +724,260 @@ fn main() -> Result<()> {
         let favorite_app_ids = Rc::clone(&favorite_app_ids);
         let running_counts = Rc::clone(&running_counts);
         let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
         let weak = ui.as_weak();
-        ui.on_move_desktop_shortcut(move |app_id, x, y| {
-            set_desktop_shortcut_position(&app_id, x, y, &desktop_shortcut_positions);
+        ui.on_select_desktop_shortcut(move |app_id| {
+            selected_desktop_shortcut_ids.borrow_mut().clear();
+            selected_desktop_shortcut_ids
+                .borrow_mut()
+                .insert(app_id.to_string());
+            *focused_desktop_shortcut_id.borrow_mut() = Some(app_id.to_string());
 
             if let Some(ui) = weak.upgrade() {
-                ui.set_desktop_shortcuts(desktop_shortcut_model(
-                    &featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6),
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
-                ));
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_clear_desktop_shortcut_selection(move || {
+            selected_desktop_shortcut_ids.borrow_mut().clear();
+            *focused_desktop_shortcut_id.borrow_mut() = None;
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    None,
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_select_all_desktop_shortcuts(move || {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            *selected_desktop_shortcut_ids.borrow_mut() = app_ids.iter().cloned().collect();
+            *focused_desktop_shortcut_id.borrow_mut() = app_ids.first().cloned();
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_marquee_select_desktop_shortcuts(move |x, y, width, height, max_x, max_y| {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            let selected_ids = desktop_shortcuts_in_rectangle(
+                &app_ids,
+                &desktop_shortcut_positions.borrow(),
+                DesktopShortcutRectangle {
+                    x,
+                    y,
+                    width,
+                    height,
+                },
+                max_x,
+                max_y,
+            );
+            *selected_desktop_shortcut_ids.borrow_mut() = selected_ids;
+            *focused_desktop_shortcut_id.borrow_mut() = first_selected_desktop_shortcut_id(
+                &app_ids,
+                &selected_desktop_shortcut_ids.borrow(),
+            );
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_move_desktop_shortcut_selection(move |dx, dy| {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            let current_focus = focused_desktop_shortcut_id.borrow().clone();
+            *focused_desktop_shortcut_id.borrow_mut() = move_desktop_shortcut_focus(
+                &app_ids,
+                &desktop_shortcut_positions.borrow(),
+                current_focus.as_deref(),
+                dx,
+                dy,
+            );
+            selected_desktop_shortcut_ids.borrow_mut().clear();
+            if let Some(app_id) = focused_desktop_shortcut_id.borrow().as_ref() {
+                selected_desktop_shortcut_ids
+                    .borrow_mut()
+                    .insert(app_id.clone());
+            }
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_nudge_selected_desktop_shortcuts(move |dx, dy, max_x, max_y| {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            nudge_selected_desktop_shortcuts(
+                &app_ids,
+                &selected_desktop_shortcut_ids.borrow(),
+                dx,
+                dy,
+                max_x,
+                max_y,
+                &desktop_shortcut_positions,
+            );
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_auto_arrange_desktop_shortcuts(move |max_x, max_y| {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            auto_arrange_desktop_shortcuts(&app_ids, max_x, max_y, &desktop_shortcut_positions);
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_app_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let focused_desktop_shortcut_id = Rc::clone(&focused_desktop_shortcut_id);
+        let weak = ui.as_weak();
+        ui.on_move_desktop_shortcut(move |app_id, x, y, max_x, max_y| {
+            let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
+            let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
+            set_desktop_shortcut_position(
+                &app_id,
+                x,
+                y,
+                max_x,
+                max_y,
+                &app_ids,
+                &desktop_shortcut_positions,
+            );
+
+            if let Some(ui) = weak.upgrade() {
+                refresh_desktop_selection_ui(
+                    &ui,
+                    &all_apps,
+                    &favorite_app_ids.borrow(),
+                    &running_counts.borrow(),
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                    focused_desktop_shortcut_id.borrow().as_deref(),
+                );
             }
         });
     }
@@ -1173,14 +1426,25 @@ fn desktop_shortcut_model(
     apps: &[apps::AppEntry],
     running_counts: &HashMap<String, i32>,
     positions: &HashMap<String, DesktopShortcutPosition>,
+    selected_ids: &HashSet<String>,
 ) -> ModelRc<DesktopShortcutEntry> {
+    let app_ids = apps.iter().map(|app| app.id.clone()).collect::<Vec<_>>();
+    let positions = effective_desktop_shortcut_positions(
+        &app_ids,
+        positions,
+        DESKTOP_SHORTCUT_MAX_X,
+        DESKTOP_SHORTCUT_MAX_Y,
+    );
+
     ModelRc::new(VecModel::from(
         apps.iter()
             .enumerate()
             .map(|(index, app)| {
                 let fallback = default_desktop_shortcut_position(index);
-                let position = clamp_desktop_shortcut_position(
+                let position = snap_desktop_shortcut_position(
                     positions.get(&app.id).copied().unwrap_or(fallback),
+                    DESKTOP_SHORTCUT_MAX_X,
+                    DESKTOP_SHORTCUT_MAX_Y,
                 );
                 DesktopShortcutEntry {
                     id: app.id.clone().into(),
@@ -1188,12 +1452,49 @@ fn desktop_shortcut_model(
                     icon_text: apps::app_icon_text(app).into(),
                     icon: load_app_icon(app),
                     active: running_counts.get(&app.id).copied().unwrap_or_default() > 0,
+                    selected: selected_ids.contains(&app.id),
                     x: position.x,
                     y: position.y,
                 }
             })
             .collect::<Vec<_>>(),
     ))
+}
+
+fn refresh_desktop_shortcuts(
+    ui: &AppWindow,
+    all_apps: &[apps::AppEntry],
+    favorite_ids: &[String],
+    running_counts: &HashMap<String, i32>,
+    positions: &HashMap<String, DesktopShortcutPosition>,
+    selected_ids: &HashSet<String>,
+) {
+    ui.set_desktop_shortcuts(desktop_shortcut_model(
+        &featured_or_favorite_apps(all_apps, favorite_ids, 6),
+        running_counts,
+        positions,
+        selected_ids,
+    ));
+}
+
+fn refresh_desktop_selection_ui(
+    ui: &AppWindow,
+    all_apps: &[apps::AppEntry],
+    favorite_ids: &[String],
+    running_counts: &HashMap<String, i32>,
+    positions: &HashMap<String, DesktopShortcutPosition>,
+    selected_ids: &HashSet<String>,
+    focused_id: Option<&str>,
+) {
+    ui.set_selected_desktop_shortcut_id(focused_id.unwrap_or_default().into());
+    refresh_desktop_shortcuts(
+        ui,
+        all_apps,
+        favorite_ids,
+        running_counts,
+        positions,
+        selected_ids,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1206,6 +1507,7 @@ fn refresh_app_models(
     selected_id: Option<&str>,
     running_counts: &HashMap<String, i32>,
     desktop_shortcut_positions: &HashMap<String, DesktopShortcutPosition>,
+    selected_desktop_shortcut_ids: &HashSet<String>,
 ) {
     ui.set_launcher_apps(launcher_model(
         filtered_apps,
@@ -1235,6 +1537,7 @@ fn refresh_app_models(
         &featured_or_favorite_apps(all_apps, favorite_ids, 6),
         running_counts,
         desktop_shortcut_positions,
+        selected_desktop_shortcut_ids,
     ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(all_apps, favorite_ids, running_counts, 5),
@@ -1834,11 +2137,28 @@ fn current_seat() -> String {
     std::env::var("XDG_SEAT").unwrap_or_else(|_| "seat0".into())
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct DesktopShortcutPosition {
     x: i32,
     y: i32,
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DesktopShortcutRectangle {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+const DESKTOP_SHORTCUT_ORIGIN_X: i32 = 20;
+const DESKTOP_SHORTCUT_ORIGIN_Y: i32 = 20;
+const DESKTOP_SHORTCUT_STEP_X: i32 = 108;
+const DESKTOP_SHORTCUT_STEP_Y: i32 = 120;
+const DESKTOP_SHORTCUT_WIDTH: i32 = 108;
+const DESKTOP_SHORTCUT_HEIGHT: i32 = 112;
+const DESKTOP_SHORTCUT_MAX_X: i32 = 168;
+const DESKTOP_SHORTCUT_MAX_Y: i32 = 512;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 struct DesktopShortcutLayoutState {
@@ -1881,24 +2201,288 @@ fn load_desktop_shortcut_positions() -> HashMap<String, DesktopShortcutPosition>
         .collect()
 }
 
-fn clamp_desktop_shortcut_position(position: DesktopShortcutPosition) -> DesktopShortcutPosition {
-    DesktopShortcutPosition {
-        x: position.x.clamp(20, 112),
-        y: position.y.clamp(20, 430),
+fn desktop_shortcut_app_ids(apps: &[apps::AppEntry]) -> Vec<String> {
+    apps.iter().map(|app| app.id.clone()).collect()
+}
+
+fn desktop_shortcut_axis_values(origin: i32, step: i32, max: i32) -> Vec<i32> {
+    if max < origin {
+        return vec![0];
     }
+
+    (origin..=max).step_by(step as usize).collect()
+}
+
+fn desktop_shortcut_grid_slots(max_x: i32, max_y: i32) -> Vec<DesktopShortcutPosition> {
+    desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_X, DESKTOP_SHORTCUT_STEP_X, max_x)
+        .into_iter()
+        .flat_map(|x| {
+            desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_Y, DESKTOP_SHORTCUT_STEP_Y, max_y)
+                .into_iter()
+                .map(move |y| DesktopShortcutPosition { x, y })
+        })
+        .collect()
+}
+
+fn snap_desktop_shortcut_position(
+    position: DesktopShortcutPosition,
+    max_x: i32,
+    max_y: i32,
+) -> DesktopShortcutPosition {
+    let nearest = |value: i32, values: Vec<i32>| {
+        values
+            .into_iter()
+            .min_by_key(|candidate| (candidate - value).abs())
+            .unwrap_or_default()
+    };
+
+    DesktopShortcutPosition {
+        x: nearest(
+            position.x,
+            desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_X, DESKTOP_SHORTCUT_STEP_X, max_x),
+        ),
+        y: nearest(
+            position.y,
+            desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_Y, DESKTOP_SHORTCUT_STEP_Y, max_y),
+        ),
+    }
+}
+
+fn nearest_free_desktop_shortcut_position(
+    desired: DesktopShortcutPosition,
+    occupied: &HashSet<DesktopShortcutPosition>,
+    max_x: i32,
+    max_y: i32,
+) -> Option<DesktopShortcutPosition> {
+    let desired = snap_desktop_shortcut_position(desired, max_x, max_y);
+    let mut slots = desktop_shortcut_grid_slots(max_x, max_y);
+    slots.sort_by_key(|slot| {
+        (
+            (slot.x - desired.x).abs() + (slot.y - desired.y).abs(),
+            slot.x,
+            slot.y,
+        )
+    });
+    slots.into_iter().find(|slot| !occupied.contains(slot))
+}
+
+fn effective_desktop_shortcut_positions(
+    app_ids: &[String],
+    stored_positions: &HashMap<String, DesktopShortcutPosition>,
+    max_x: i32,
+    max_y: i32,
+) -> HashMap<String, DesktopShortcutPosition> {
+    let mut positions = HashMap::new();
+    let mut occupied = HashSet::new();
+
+    for (index, app_id) in app_ids.iter().enumerate() {
+        let desired = stored_positions
+            .get(app_id)
+            .copied()
+            .unwrap_or_else(|| default_desktop_shortcut_position(index));
+        let position = nearest_free_desktop_shortcut_position(desired, &occupied, max_x, max_y)
+            .unwrap_or_else(|| snap_desktop_shortcut_position(desired, max_x, max_y));
+        occupied.insert(position);
+        positions.insert(app_id.clone(), position);
+    }
+
+    positions
 }
 
 fn set_desktop_shortcut_position(
     app_id: &str,
     x: i32,
     y: i32,
+    max_x: i32,
+    max_y: i32,
+    app_ids: &[String],
     positions: &Rc<RefCell<HashMap<String, DesktopShortcutPosition>>>,
 ) {
-    positions.borrow_mut().insert(
-        app_id.to_string(),
-        clamp_desktop_shortcut_position(DesktopShortcutPosition { x, y }),
+    let mut layout =
+        effective_desktop_shortcut_positions(app_ids, &positions.borrow(), max_x, max_y);
+    let occupied = layout
+        .iter()
+        .filter(|(id, _)| id.as_str() != app_id)
+        .map(|(_, position)| *position)
+        .collect::<HashSet<_>>();
+    let position = nearest_free_desktop_shortcut_position(
+        DesktopShortcutPosition { x, y },
+        &occupied,
+        max_x,
+        max_y,
     );
+
+    if let Some(position) = position {
+        layout.insert(app_id.to_string(), position);
+        *positions.borrow_mut() = layout;
+        persist_desktop_shortcut_positions(&positions.borrow());
+    }
+}
+
+fn nudge_selected_desktop_shortcuts(
+    app_ids: &[String],
+    selected_ids: &HashSet<String>,
+    dx: i32,
+    dy: i32,
+    max_x: i32,
+    max_y: i32,
+    positions: &Rc<RefCell<HashMap<String, DesktopShortcutPosition>>>,
+) -> bool {
+    let Some(layout) = nudged_desktop_shortcut_positions(
+        app_ids,
+        selected_ids,
+        dx,
+        dy,
+        max_x,
+        max_y,
+        &positions.borrow(),
+    ) else {
+        return false;
+    };
+
+    *positions.borrow_mut() = layout;
     persist_desktop_shortcut_positions(&positions.borrow());
+    true
+}
+
+fn nudged_desktop_shortcut_positions(
+    app_ids: &[String],
+    selected_ids: &HashSet<String>,
+    dx: i32,
+    dy: i32,
+    max_x: i32,
+    max_y: i32,
+    stored_positions: &HashMap<String, DesktopShortcutPosition>,
+) -> Option<HashMap<String, DesktopShortcutPosition>> {
+    if selected_ids.is_empty() || (dx == 0 && dy == 0) {
+        return None;
+    }
+
+    let mut layout = effective_desktop_shortcut_positions(app_ids, stored_positions, max_x, max_y);
+    let unselected_positions = layout
+        .iter()
+        .filter(|(id, _)| !selected_ids.contains(*id))
+        .map(|(_, position)| *position)
+        .collect::<HashSet<_>>();
+    let mut targets = HashMap::new();
+    let mut occupied_targets = HashSet::new();
+
+    for app_id in app_ids.iter().filter(|id| selected_ids.contains(*id)) {
+        let Some(current) = layout.get(app_id).copied() else {
+            continue;
+        };
+        let target = snap_desktop_shortcut_position(
+            DesktopShortcutPosition {
+                x: current.x + dx * DESKTOP_SHORTCUT_STEP_X,
+                y: current.y + dy * DESKTOP_SHORTCUT_STEP_Y,
+            },
+            max_x,
+            max_y,
+        );
+
+        if target == current
+            || unselected_positions.contains(&target)
+            || !occupied_targets.insert(target)
+        {
+            return None;
+        }
+
+        targets.insert(app_id.clone(), target);
+    }
+
+    if targets.is_empty() {
+        return None;
+    }
+
+    layout.extend(targets);
+    Some(layout)
+}
+
+fn auto_arrange_desktop_shortcuts(
+    app_ids: &[String],
+    max_x: i32,
+    max_y: i32,
+    positions: &Rc<RefCell<HashMap<String, DesktopShortcutPosition>>>,
+) {
+    let slots = desktop_shortcut_grid_slots(max_x, max_y);
+    let layout = app_ids
+        .iter()
+        .zip(slots)
+        .map(|(app_id, position)| (app_id.clone(), position))
+        .collect::<HashMap<_, _>>();
+    *positions.borrow_mut() = layout;
+    persist_desktop_shortcut_positions(&positions.borrow());
+}
+
+fn first_selected_desktop_shortcut_id(
+    app_ids: &[String],
+    selected_ids: &HashSet<String>,
+) -> Option<String> {
+    app_ids
+        .iter()
+        .find(|app_id| selected_ids.contains(*app_id))
+        .cloned()
+}
+
+fn desktop_shortcuts_in_rectangle(
+    app_ids: &[String],
+    stored_positions: &HashMap<String, DesktopShortcutPosition>,
+    rectangle: DesktopShortcutRectangle,
+    max_x: i32,
+    max_y: i32,
+) -> HashSet<String> {
+    effective_desktop_shortcut_positions(app_ids, stored_positions, max_x, max_y)
+        .into_iter()
+        .filter(|(_, position)| {
+            position.x < rectangle.x + rectangle.width
+                && position.x + DESKTOP_SHORTCUT_WIDTH > rectangle.x
+                && position.y < rectangle.y + rectangle.height
+                && position.y + DESKTOP_SHORTCUT_HEIGHT > rectangle.y
+        })
+        .map(|(app_id, _)| app_id)
+        .collect()
+}
+
+fn move_desktop_shortcut_focus(
+    app_ids: &[String],
+    stored_positions: &HashMap<String, DesktopShortcutPosition>,
+    focused_id: Option<&str>,
+    dx: i32,
+    dy: i32,
+) -> Option<String> {
+    let positions = effective_desktop_shortcut_positions(
+        app_ids,
+        stored_positions,
+        DESKTOP_SHORTCUT_MAX_X,
+        DESKTOP_SHORTCUT_MAX_Y,
+    );
+    let current_id = focused_id
+        .filter(|focused_id| positions.contains_key(*focused_id))
+        .or_else(|| app_ids.first().map(String::as_str))?;
+    let current = positions.get(current_id)?;
+
+    positions
+        .iter()
+        .filter(|(app_id, position)| {
+            app_id.as_str() != current_id
+                && (dx == 0 || (position.x - current.x).signum() == dx.signum())
+                && (dy == 0 || (position.y - current.y).signum() == dy.signum())
+        })
+        .min_by_key(|(_, position)| {
+            let primary = if dx != 0 {
+                (position.x - current.x).abs()
+            } else {
+                (position.y - current.y).abs()
+            };
+            let secondary = if dx != 0 {
+                (position.y - current.y).abs()
+            } else {
+                (position.x - current.x).abs()
+            };
+            (primary, secondary)
+        })
+        .map(|(app_id, _)| app_id.clone())
+        .or_else(|| Some(current_id.to_string()))
 }
 
 fn persist_desktop_shortcut_positions(positions: &HashMap<String, DesktopShortcutPosition>) {
@@ -1926,12 +2510,13 @@ fn persist_desktop_shortcut_positions(positions: &HashMap<String, DesktopShortcu
 }
 
 fn default_desktop_shortcut_position(index: usize) -> DesktopShortcutPosition {
-    const COLUMNS: [i32; 2] = [28, 112];
-    const ROWS: [i32; 3] = [28, 142, 256];
-
-    let column = COLUMNS[(index / ROWS.len()).min(COLUMNS.len() - 1)];
-    let row = ROWS[index % ROWS.len()];
-    DesktopShortcutPosition { x: column, y: row }
+    desktop_shortcut_grid_slots(DESKTOP_SHORTCUT_MAX_X, DESKTOP_SHORTCUT_MAX_Y)
+        .get(index)
+        .copied()
+        .unwrap_or(DesktopShortcutPosition {
+            x: DESKTOP_SHORTCUT_ORIGIN_X,
+            y: DESKTOP_SHORTCUT_ORIGIN_Y,
+        })
 }
 
 fn recent_apps(
@@ -2762,17 +3347,128 @@ lo:loopback:connected (externally):lo
     }
 
     #[test]
-    fn desktop_shortcut_positions_are_clamped_to_the_desktop_lane() {
-        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 280, y: -14 });
-        assert_eq!(position.x, 112);
+    fn desktop_shortcut_positions_snap_to_the_bounded_grid() {
+        let position = snap_desktop_shortcut_position(
+            DesktopShortcutPosition { x: 280, y: -14 },
+            DESKTOP_SHORTCUT_MAX_X,
+            DESKTOP_SHORTCUT_MAX_Y,
+        );
+        assert_eq!(position.x, 128);
         assert_eq!(position.y, 20);
 
-        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 84 });
-        assert_eq!(position.x, 36);
-        assert_eq!(position.y, 84);
+        let position = snap_desktop_shortcut_position(
+            DesktopShortcutPosition { x: 36, y: 84 },
+            DESKTOP_SHORTCUT_MAX_X,
+            DESKTOP_SHORTCUT_MAX_Y,
+        );
+        assert_eq!(position.x, 20);
+        assert_eq!(position.y, 140);
 
-        let position = clamp_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 900 });
-        assert_eq!(position.y, 430);
+        let position =
+            snap_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 900 }, 0, 0);
+        assert_eq!(position, DesktopShortcutPosition { x: 0, y: 0 });
+    }
+
+    #[test]
+    fn desktop_shortcut_layout_resolves_saved_collisions() {
+        let app_ids = vec!["one".into(), "two".into(), "three".into()];
+        let stored = HashMap::from([
+            ("one".into(), DesktopShortcutPosition { x: 22, y: 18 }),
+            ("two".into(), DesktopShortcutPosition { x: 22, y: 18 }),
+            ("three".into(), DesktopShortcutPosition { x: 22, y: 18 }),
+        ]);
+
+        let positions = effective_desktop_shortcut_positions(
+            &app_ids,
+            &stored,
+            DESKTOP_SHORTCUT_MAX_X,
+            DESKTOP_SHORTCUT_MAX_Y,
+        );
+        assert_eq!(positions["one"], DesktopShortcutPosition { x: 20, y: 20 });
+        assert_eq!(positions["two"], DesktopShortcutPosition { x: 128, y: 20 });
+        assert_eq!(
+            positions["three"],
+            DesktopShortcutPosition { x: 20, y: 140 }
+        );
+    }
+
+    #[test]
+    fn desktop_shortcut_marquee_selects_intersecting_objects() {
+        let app_ids = vec!["one".into(), "two".into(), "three".into()];
+        let selected = desktop_shortcuts_in_rectangle(
+            &app_ids,
+            &HashMap::new(),
+            DesktopShortcutRectangle {
+                x: 0,
+                y: 0,
+                width: 110,
+                height: 250,
+            },
+            DESKTOP_SHORTCUT_MAX_X,
+            DESKTOP_SHORTCUT_MAX_Y,
+        );
+
+        assert_eq!(selected, HashSet::from(["one".into(), "two".into()]));
+    }
+
+    #[test]
+    fn desktop_shortcut_keyboard_focus_moves_spatially() {
+        let app_ids = vec!["one".into(), "two".into(), "three".into()];
+        let positions = HashMap::from([
+            ("one".into(), DesktopShortcutPosition { x: 20, y: 20 }),
+            ("two".into(), DesktopShortcutPosition { x: 20, y: 140 }),
+            ("three".into(), DesktopShortcutPosition { x: 128, y: 20 }),
+        ]);
+
+        assert_eq!(
+            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), 0, 1).as_deref(),
+            Some("two")
+        );
+        assert_eq!(
+            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), 1, 0).as_deref(),
+            Some("three")
+        );
+        assert_eq!(
+            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), -1, 0).as_deref(),
+            Some("one")
+        );
+    }
+
+    #[test]
+    fn desktop_shortcut_group_nudge_rejects_collisions() {
+        let app_ids = vec!["one".into(), "two".into(), "three".into()];
+        let positions = HashMap::from([
+            ("one".into(), DesktopShortcutPosition { x: 20, y: 20 }),
+            ("two".into(), DesktopShortcutPosition { x: 20, y: 140 }),
+            ("three".into(), DesktopShortcutPosition { x: 128, y: 20 }),
+        ]);
+        let selected = HashSet::from(["one".into(), "two".into()]);
+
+        assert!(
+            nudged_desktop_shortcut_positions(
+                &app_ids,
+                &selected,
+                1,
+                0,
+                DESKTOP_SHORTCUT_MAX_X,
+                DESKTOP_SHORTCUT_MAX_Y,
+                &positions,
+            )
+            .is_none()
+        );
+
+        let moved = nudged_desktop_shortcut_positions(
+            &app_ids,
+            &selected,
+            0,
+            1,
+            DESKTOP_SHORTCUT_MAX_X,
+            DESKTOP_SHORTCUT_MAX_Y,
+            &positions,
+        )
+        .expect("group can move down");
+        assert_eq!(moved["one"], DesktopShortcutPosition { x: 20, y: 140 });
+        assert_eq!(moved["two"], DesktopShortcutPosition { x: 20, y: 260 });
     }
 
     #[test]

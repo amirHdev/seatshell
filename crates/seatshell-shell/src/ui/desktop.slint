@@ -1,6 +1,6 @@
 import { LauncherApp } from "launcher.slint";
 import { ShellTheme } from "shell-theme.slint";
-import { ShellIcon, ShellPill } from "shell-widgets.slint";
+import { ShellAction, ShellIcon, ShellPill } from "shell-widgets.slint";
 import { ScrollView } from "std-widgets.slint";
 
 export struct DesktopFile {
@@ -15,6 +15,7 @@ export struct DesktopShortcutEntry {
     icon_text: string,
     icon: image,
     active: bool,
+    selected: bool,
     x: int,
     y: int,
 }
@@ -25,6 +26,7 @@ component DesktopShortcut inherits Rectangle {
     in property <string> icon-text;
     in property <image> icon;
     in property <bool> active: false;
+    in property <bool> selected: false;
     in property <bool> draggable: false;
     in property <bool> compact: false;
     in property <int> max-x: 9999;
@@ -32,16 +34,25 @@ component DesktopShortcut inherits Rectangle {
 
     in-out property <length> drag-offset-x: 0px;
     in-out property <length> drag-offset-y: 0px;
+    out property <bool> dragging: root.drag-offset-x > 6px
+        || root.drag-offset-x < -6px
+        || root.drag-offset-y > 6px
+        || root.drag-offset-y < -6px;
 
     callback activated();
-    callback moved(string, int, int);
+    callback selection-requested(string);
+    callback moved(string, int, int, int, int);
 
     width: root.compact ? 92px : 108px;
     height: root.compact ? 96px : 112px;
-    background: touch.has-hover || root.active ? #101823aa : transparent;
+    background: root.dragging
+        ? #263a52d9
+        : touch.has-hover || root.selected || root.active
+            ? #101823cc
+            : transparent;
     border-radius: 14px;
-    border-width: touch.has-hover || root.active ? 1px : 0px;
-    border-color: root.active ? ShellTheme.accent : #ffffff22;
+    border-width: touch.has-hover || root.selected || root.active ? 1px : 0px;
+    border-color: root.selected || root.active ? ShellTheme.accent : #ffffff22;
 
     animate background { duration: 120ms; }
     animate border-color { duration: 120ms; }
@@ -61,15 +72,17 @@ component DesktopShortcut inherits Rectangle {
                 return;
             }
 
-            if event.kind == PointerEventKind.up {
+            if event.kind == PointerEventKind.down {
+                root.selection-requested(root.app-id);
+            } else if event.kind == PointerEventKind.up {
                 if root.drag-offset-x > 6px || root.drag-offset-x < -6px || root.drag-offset-y > 6px || root.drag-offset-y < -6px {
                     root.moved(
                         root.app-id,
                         min(max((root.x / 1px), 0), root.max-x),
-                        min(max((root.y / 1px), 0), root.max-y)
+                        min(max((root.y / 1px), 0), root.max-y),
+                        root.max-x,
+                        root.max-y
                     );
-                } else {
-                    root.activated();
                 }
 
                 root.drag-offset-x = 0px;
@@ -81,6 +94,30 @@ component DesktopShortcut inherits Rectangle {
             if !root.draggable {
                 root.activated();
             }
+        }
+
+        double-clicked => {
+            root.activated();
+        }
+    }
+
+    if root.dragging: Rectangle {
+        x: 8px;
+        y: parent.height - 24px;
+        width: parent.width - 16px;
+        height: 18px;
+        background: ShellTheme.surface-accent;
+        border-radius: 7px;
+        border-width: 1px;
+        border-color: ShellTheme.accent;
+
+        Text {
+            text: "SNAP";
+            color: ShellTheme.text-accent;
+            font-size: 8px;
+            font-weight: 800;
+            horizontal-alignment: center;
+            vertical-alignment: center;
         }
     }
 
@@ -208,6 +245,7 @@ export component Desktop inherits Rectangle {
     in property <[LauncherApp]> active-apps;
     in property <[DesktopFile]> recent-files;
     in property <[DesktopShortcutEntry]> desktop-shortcuts;
+    in property <string> selected-shortcut-id;
     in property <string> user-name;
     in property <string> theme-name;
     in property <image> wallpaper-image;
@@ -227,9 +265,70 @@ export component Desktop inherits Rectangle {
     callback show-overview();
     callback launch-app(string);
     callback open-file(string);
-    callback move-desktop-shortcut(string, int, int);
+    callback select-desktop-shortcut(string);
+    callback clear-desktop-shortcut-selection();
+    callback select-all-desktop-shortcuts();
+    callback marquee-select-desktop-shortcuts(int, int, int, int, int, int);
+    callback move-desktop-shortcut-selection(int, int);
+    callback nudge-selected-desktop-shortcuts(int, int, int, int);
+    callback auto-arrange-desktop-shortcuts(int, int);
+    callback move-desktop-shortcut(string, int, int, int, int);
 
     background: ShellTheme.background;
+    forward-focus: desktop-focus;
+
+    desktop-focus := FocusScope {
+        x: 0px;
+        width: 0px;
+
+        key-pressed(event) => {
+            if event.text == Key.Return {
+                if root.selected-shortcut-id != "" {
+                    root.launch-app(root.selected-shortcut-id);
+                }
+                accept
+            } else if event.text == Key.Escape {
+                root.clear-desktop-shortcut-selection();
+                accept
+            } else if event.text == "a" && event.modifiers.control && event.modifiers.shift {
+                root.auto-arrange-desktop-shortcuts(lane.max-shortcut-x, lane.max-shortcut-y);
+                accept
+            } else if event.text == "a" && event.modifiers.control {
+                root.select-all-desktop-shortcuts();
+                accept
+            } else if event.text == Key.LeftArrow {
+                if event.modifiers.control {
+                    root.nudge-selected-desktop-shortcuts(-1, 0, lane.max-shortcut-x, lane.max-shortcut-y);
+                } else {
+                    root.move-desktop-shortcut-selection(-1, 0);
+                }
+                accept
+            } else if event.text == Key.RightArrow {
+                if event.modifiers.control {
+                    root.nudge-selected-desktop-shortcuts(1, 0, lane.max-shortcut-x, lane.max-shortcut-y);
+                } else {
+                    root.move-desktop-shortcut-selection(1, 0);
+                }
+                accept
+            } else if event.text == Key.UpArrow {
+                if event.modifiers.control {
+                    root.nudge-selected-desktop-shortcuts(0, -1, lane.max-shortcut-x, lane.max-shortcut-y);
+                } else {
+                    root.move-desktop-shortcut-selection(0, -1);
+                }
+                accept
+            } else if event.text == Key.DownArrow {
+                if event.modifiers.control {
+                    root.nudge-selected-desktop-shortcuts(0, 1, lane.max-shortcut-x, lane.max-shortcut-y);
+                } else {
+                    root.move-desktop-shortcut-selection(0, 1);
+                }
+                accept
+            } else {
+                reject
+            }
+        }
+    }
 
     if root.wallpaper-image.width > 0 && root.wallpaper-image.height > 0: Image {
         source: root.wallpaper-image;
@@ -264,7 +363,15 @@ export component Desktop inherits Rectangle {
         opacity: 0.10;
     }
 
-    Rectangle {
+    lane := Rectangle {
+        in property <int> max-shortcut-x: max(0, ((self.width - 108px) / 1px));
+        in property <int> max-shortcut-y: max(0, ((self.height - 112px) / 1px));
+        in-out property <bool> marquee-active: false;
+        in-out property <length> marquee-start-x: 0px;
+        in-out property <length> marquee-start-y: 0px;
+        in-out property <length> marquee-end-x: 0px;
+        in-out property <length> marquee-end-y: 0px;
+
         x: root.desktop ? 28px : 12px;
         y: root.desktop
             ? 28px
@@ -282,25 +389,122 @@ export component Desktop inherits Rectangle {
         background: transparent;
         clip: true;
 
+        lane-touch := TouchArea {
+            pointer-event(event) => {
+                if event.button != PointerEventButton.left {
+                    return;
+                }
+
+                if event.kind == PointerEventKind.down {
+                    desktop-focus.focus();
+                    root.clear-desktop-shortcut-selection();
+                    parent.marquee-active = true;
+                    parent.marquee-start-x = self.mouse-x;
+                    parent.marquee-start-y = self.mouse-y;
+                    parent.marquee-end-x = self.mouse-x;
+                    parent.marquee-end-y = self.mouse-y;
+                } else if event.kind == PointerEventKind.move && self.pressed {
+                    parent.marquee-end-x = self.mouse-x;
+                    parent.marquee-end-y = self.mouse-y;
+                } else if event.kind == PointerEventKind.up && parent.marquee-active {
+                    parent.marquee-end-x = self.mouse-x;
+                    parent.marquee-end-y = self.mouse-y;
+
+                    if parent.marquee-end-x - parent.marquee-start-x > 6px
+                        || parent.marquee-end-x - parent.marquee-start-x < -6px
+                        || parent.marquee-end-y - parent.marquee-start-y > 6px
+                        || parent.marquee-end-y - parent.marquee-start-y < -6px {
+                        root.marquee-select-desktop-shortcuts(
+                            min(parent.marquee-start-x, parent.marquee-end-x) / 1px,
+                            min(parent.marquee-start-y, parent.marquee-end-y) / 1px,
+                            abs(parent.marquee-end-x - parent.marquee-start-x) / 1px,
+                            abs(parent.marquee-end-y - parent.marquee-start-y) / 1px,
+                            parent.max-shortcut-x,
+                            parent.max-shortcut-y
+                        );
+                    }
+
+                    parent.marquee-active = false;
+                }
+            }
+        }
+
+        if lane.marquee-active: Rectangle {
+            x: min(lane.marquee-start-x, lane.marquee-end-x);
+            y: min(lane.marquee-start-y, lane.marquee-end-y);
+            width: abs(lane.marquee-end-x - lane.marquee-start-x);
+            height: abs(lane.marquee-end-y - lane.marquee-start-y);
+            background: #ffb36a22;
+            border-width: 1px;
+            border-color: ShellTheme.accent;
+            border-radius: 8px;
+        }
+
         for shortcut in root.desktop-shortcuts: DesktopShortcut {
             app-id: shortcut.id;
-            max-x: max(0, ((parent.width - self.width) / 1px));
-            max-y: max(0, ((parent.height - self.height) / 1px));
+            max-x: lane.max-shortcut-x;
+            max-y: lane.max-shortcut-y;
             x: min(shortcut.x, self.max-x) * 1px + self.drag-offset-x;
             y: min(shortcut.y, self.max-y) * 1px + self.drag-offset-y;
             label: shortcut.name;
             icon-text: shortcut.icon_text;
             icon: shortcut.icon;
             active: shortcut.active;
+            selected: shortcut.selected;
             draggable: root.desktop;
             compact: root.compact;
 
-            moved(app-id, x, y) => {
-                root.move-desktop-shortcut(app-id, x, y);
+            selection-requested(app-id) => {
+                desktop-focus.focus();
+                root.select-desktop-shortcut(app-id);
+            }
+
+            moved(app-id, x, y, max-x, max-y) => {
+                root.move-desktop-shortcut(app-id, x, y, max-x, max-y);
             }
 
             activated => {
                 root.launch-app(shortcut.id);
+            }
+        }
+
+        if root.desktop: Rectangle {
+            x: 8px;
+            y: parent.height - 54px;
+            width: parent.width - 16px;
+            height: 42px;
+            background: #08111bcc;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #ffffff18;
+
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 6px;
+                alignment: center;
+
+                Text {
+                    text: root.selected-shortcut-id == ""
+                        ? "Drag to select"
+                        : "Ctrl + arrows move";
+                    color: ShellTheme.text-muted;
+                    font-size: 9px;
+                    horizontal-stretch: 1;
+                    overflow: elide;
+                }
+
+                ShellAction {
+                    label: "Arrange";
+                    icon-name: "apps";
+                    compact: true;
+                    tiny: true;
+
+                    clicked => {
+                        desktop-focus.focus();
+                        root.auto-arrange-desktop-shortcuts(lane.max-shortcut-x, lane.max-shortcut-y);
+                    }
+                }
             }
         }
     }
