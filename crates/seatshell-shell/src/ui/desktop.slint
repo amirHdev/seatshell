@@ -20,6 +20,21 @@ export struct DesktopShortcutEntry {
     y: int,
 }
 
+export struct DesktopWindowEntry {
+    id: string,
+    name: string,
+    detail: string,
+    icon_text: string,
+    icon: image,
+    focused: bool,
+    minimized: bool,
+    maximized: bool,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+}
+
 component DesktopShortcut inherits Rectangle {
     in property <string> app-id;
     in property <string> label;
@@ -140,6 +155,10 @@ component DesktopShortcut inherits Rectangle {
         }
 
         if root.icon.width == 0 || root.icon.height == 0: Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
             text: root.icon-text;
             color: root.active ? ShellTheme.text-accent : ShellTheme.text-primary;
             font-size: root.compact ? 11px : 13px;
@@ -162,6 +181,525 @@ component DesktopShortcut inherits Rectangle {
         vertical-alignment: top;
         wrap: word-wrap;
         overflow: elide;
+    }
+}
+
+component WorkspaceWindow inherits Rectangle {
+    in property <string> app-id;
+    in property <string> title;
+    in property <string> detail;
+    in property <string> icon-text;
+    in property <image> icon;
+    in property <bool> focused: false;
+    in property <bool> minimized: false;
+    in property <bool> maximized: false;
+    in property <int> max-x: 9999;
+    in property <int> max-y: 9999;
+
+    in-out property <length> drag-offset-x: 0px;
+    in-out property <length> drag-offset-y: 0px;
+    in-out property <length> resize-offset-x: 0px;
+    in-out property <length> resize-offset-y: 0px;
+
+    callback focus-requested(string);
+    callback minimized-requested(string);
+    callback maximized-requested(string);
+    callback closed-requested(string);
+    callback moved(string, int, int, int, int);
+    callback resized(string, int, int);
+
+    visible: !root.minimized;
+    min-width: 280px;
+    min-height: 240px;
+    background: root.focused ? #101927f6 : #0c1420ee;
+    border-radius: 18px;
+    border-width: 1px;
+    border-color: root.focused ? ShellTheme.accent : #ffffff22;
+    clip: true;
+
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
+
+    titlebar := Rectangle {
+        height: 0px;
+        width: parent.width;
+        background: transparent;
+
+        drag-touch := TouchArea {
+            mouse-cursor: self.pressed ? grabbing : grab;
+
+            pointer-event(event) => {
+                if event.button != PointerEventButton.left {
+                    return;
+                }
+
+                if event.kind == PointerEventKind.down {
+                    root.focus-requested(root.app-id);
+                } else if event.kind == PointerEventKind.up {
+                    if root.drag-offset-x > 3px || root.drag-offset-x < -3px || root.drag-offset-y > 3px || root.drag-offset-y < -3px {
+                        root.moved(
+                            root.app-id,
+                            min(max((root.x / 1px), 0), root.max-x),
+                            min(max((root.y / 1px), 0), root.max-y),
+                            root.max-x,
+                            root.max-y
+                        );
+                    }
+
+                    root.drag-offset-x = 0px;
+                    root.drag-offset-y = 0px;
+                }
+            }
+
+            moved => {
+                if self.pressed {
+                    root.drag-offset-x = self.mouse-x - self.pressed-x;
+                    root.drag-offset-y = self.mouse-y - self.pressed-y;
+                }
+            }
+        }
+
+        Rectangle {
+            x: 11px;
+            y: 9px;
+            width: 24px;
+            height: 24px;
+            background: root.focused ? ShellTheme.accent : #ffffff12;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: root.focused ? ShellTheme.accent : #ffffff20;
+
+            if root.icon.width > 0 && root.icon.height > 0: Image {
+                source: root.icon;
+                width: 14px;
+                height: 14px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+
+            if root.icon.width == 0 || root.icon.height == 0: Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: root.icon-text;
+                color: root.focused ? #1a120d : ShellTheme.text-primary;
+                font-size: 9px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            x: 44px;
+            y: 0px;
+            width: parent.width - 112px;
+            height: parent.height;
+            text: root.title;
+            color: ShellTheme.text-primary;
+            font-size: 12px;
+            font-weight: 800;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            x: parent.width - 62px;
+            y: 9px;
+            width: 24px;
+            height: 24px;
+            background: minimize-touch.has-hover ? #ffffff16 : transparent;
+            border-radius: 8px;
+
+            minimize-touch := TouchArea {
+                clicked => {
+                    root.minimized-requested(root.app-id);
+                }
+            }
+
+            Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: "-";
+                color: ShellTheme.text-secondary;
+                font-size: 15px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            x: parent.width - 34px;
+            y: 9px;
+            width: 24px;
+            height: 24px;
+            background: close-touch.has-hover ? #9b2f2fbb : transparent;
+            border-radius: 8px;
+
+            close-touch := TouchArea {
+                clicked => {
+                    root.closed-requested(root.app-id);
+                }
+            }
+
+            Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                text: "x";
+                color: close-touch.has-hover ? #ffffff : ShellTheme.text-secondary;
+                font-size: 13px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            y: 0px;
+            width: parent.width;
+            height: 0px;
+            background: transparent;
+        }
+    }
+
+    body-touch := TouchArea {
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+
+        clicked => {
+            root.focus-requested(root.app-id);
+        }
+    }
+
+    Rectangle {
+        x: 14px;
+        y: 14px;
+        width: parent.width - 28px;
+        height: parent.height - 28px;
+        background: #070d15;
+        border-radius: 13px;
+        border-width: 1px;
+        border-color: #ffffff16;
+        clip: true;
+
+        VerticalLayout {
+            padding: 12px;
+            spacing: 10px;
+
+            header := Rectangle {
+                height: 42px;
+                background: transparent;
+
+                header-touch := TouchArea {
+                    mouse-cursor: root.maximized ? default : (self.pressed ? grabbing : grab);
+
+                    pointer-event(event) => {
+                        if event.button != PointerEventButton.left {
+                            return;
+                        }
+
+                        if event.kind == PointerEventKind.down {
+                            root.focus-requested(root.app-id);
+                        } else if event.kind == PointerEventKind.up {
+                            if !root.maximized
+                                && (root.drag-offset-x > 3px || root.drag-offset-x < -3px || root.drag-offset-y > 3px || root.drag-offset-y < -3px) {
+                                root.moved(
+                                    root.app-id,
+                                    min(max((root.x / 1px), 0), root.max-x),
+                                    min(max((root.y / 1px), 0), root.max-y),
+                                    root.max-x,
+                                    root.max-y
+                                );
+                            }
+
+                            root.drag-offset-x = 0px;
+                            root.drag-offset-y = 0px;
+                        }
+                    }
+
+                    moved => {
+                        if self.pressed && !root.maximized {
+                            root.drag-offset-x = self.mouse-x - self.pressed-x;
+                            root.drag-offset-y = self.mouse-y - self.pressed-y;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    spacing: 8px;
+                    alignment: center;
+
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        background: ShellTheme.surface-accent;
+                        border-radius: 12px;
+                        border-width: 1px;
+                        border-color: ShellTheme.accent;
+
+                        if root.icon.width > 0 && root.icon.height > 0: Image {
+                            source: root.icon;
+                            width: 22px;
+                            height: 22px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        if root.icon.width == 0 || root.icon.height == 0: Text {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width;
+                            height: parent.height;
+                            text: root.icon-text;
+                            color: ShellTheme.text-accent;
+                            font-size: 11px;
+                            font-weight: 900;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 2px;
+                        horizontal-stretch: 1;
+
+                        Text {
+                            text: root.title;
+                            color: ShellTheme.text-primary;
+                            font-size: 14px;
+                            font-weight: 900;
+                            overflow: elide;
+                        }
+
+                        Text {
+                            text: root.detail;
+                            color: ShellTheme.text-muted;
+                            font-size: 10px;
+                            overflow: elide;
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        background: visible-minimize-touch.has-hover ? #ffffff16 : #ffffff0a;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #ffffff18;
+
+                        visible-minimize-touch := TouchArea {
+                            clicked => {
+                                root.minimized-requested(root.app-id);
+                            }
+                        }
+
+                        Text {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width;
+                            height: parent.height;
+                            text: "-";
+                            color: ShellTheme.text-secondary;
+                            font-size: 15px;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        background: visible-maximize-touch.has-hover ? #ffffff16 : #ffffff0a;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: root.maximized ? ShellTheme.accent : #ffffff18;
+
+                        visible-maximize-touch := TouchArea {
+                            clicked => {
+                                root.maximized-requested(root.app-id);
+                            }
+                        }
+
+                        Text {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width;
+                            height: parent.height;
+                            text: root.maximized ? "<>" : "+";
+                            color: root.maximized ? ShellTheme.text-accent : ShellTheme.text-secondary;
+                            font-size: 12px;
+                            font-weight: 900;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        background: visible-close-touch.has-hover ? #9b2f2fbb : #ffffff0a;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: visible-close-touch.has-hover ? #9b2f2f : #ffffff18;
+
+                        visible-close-touch := TouchArea {
+                            clicked => {
+                                root.closed-requested(root.app-id);
+                            }
+                        }
+
+                        Text {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width;
+                            height: parent.height;
+                            text: "x";
+                            color: visible-close-touch.has-hover ? #ffffff : ShellTheme.text-secondary;
+                            font-size: 13px;
+                            font-weight: 800;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 34px;
+                background: #ffffff08;
+                border-radius: 10px;
+                border-width: 1px;
+                border-color: #ffffff14;
+
+                HorizontalLayout {
+                    padding-left: 9px;
+                    padding-right: 9px;
+                    spacing: 7px;
+                    alignment: center;
+
+                    Rectangle { width: 9px; height: 9px; border-radius: 999px; background: #ff7a6a; }
+                    Rectangle { width: 9px; height: 9px; border-radius: 999px; background: #f4c76a; }
+                    Rectangle { width: 9px; height: 9px; border-radius: 999px; background: #6cd69a; }
+                    Rectangle { horizontal-stretch: 1; height: 8px; background: #ffffff12; border-radius: 999px; }
+                    Rectangle { width: 54px; height: 8px; background: #ffffff18; border-radius: 999px; }
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+                spacing: 10px;
+
+                Rectangle {
+                    width: 112px;
+                    background: #ffffff08;
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: #ffffff12;
+
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 8px;
+
+                        Rectangle { height: 8px; background: ShellTheme.accent; border-radius: 999px; }
+                        Rectangle { height: 8px; background: #ffffff1c; border-radius: 999px; }
+                        Rectangle { height: 8px; background: #ffffff14; border-radius: 999px; }
+                        Rectangle { vertical-stretch: 1; background: transparent; }
+                        Rectangle { height: 28px; background: #ffffff10; border-radius: 9px; }
+                    }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: #ffffff06;
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: #ffffff10;
+
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 9px;
+
+                        Rectangle { height: 11px; horizontal-stretch: 1; background: #ffffff28; border-radius: 999px; }
+                        Rectangle { height: 9px; horizontal-stretch: 1; background: #ffffff16; border-radius: 999px; }
+                        Rectangle { height: 9px; horizontal-stretch: 1; background: #ffffff14; border-radius: 999px; }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Rectangle { horizontal-stretch: 1; height: 68px; background: #ffffff0d; border-radius: 10px; }
+                            Rectangle { horizontal-stretch: 1; height: 68px; background: #ffffff0d; border-radius: 10px; }
+                        }
+
+                        Rectangle { vertical-stretch: 1; background: #ffffff08; border-radius: 10px; }
+                    }
+                }
+            }
+        }
+    }
+
+    if !root.maximized: Rectangle {
+        x: parent.width - 24px;
+        y: parent.height - 24px;
+        width: 24px;
+        height: 24px;
+        background: resize-touch.has-hover ? #ffffff18 : transparent;
+        border-radius: 8px;
+
+        resize-touch := TouchArea {
+            mouse-cursor: nwse-resize;
+
+            pointer-event(event) => {
+                if event.button != PointerEventButton.left {
+                    return;
+                }
+
+                if event.kind == PointerEventKind.down {
+                    root.focus-requested(root.app-id);
+                } else if event.kind == PointerEventKind.up {
+                    root.resized(
+                        root.app-id,
+                        max(((root.width + root.resize-offset-x) / 1px), 280),
+                        max(((root.height + root.resize-offset-y) / 1px), 240)
+                    );
+                    root.resize-offset-x = 0px;
+                    root.resize-offset-y = 0px;
+                }
+            }
+
+            moved => {
+                if self.pressed {
+                    root.resize-offset-x = self.mouse-x - self.pressed-x;
+                    root.resize-offset-y = self.mouse-y - self.pressed-y;
+                }
+            }
+        }
+
+        Rectangle {
+            x: 8px;
+            y: 14px;
+            width: 10px;
+            height: 1px;
+            background: ShellTheme.text-muted;
+        }
+
+        Rectangle {
+            x: 12px;
+            y: 18px;
+            width: 7px;
+            height: 1px;
+            background: ShellTheme.text-muted;
+        }
     }
 }
 
@@ -232,6 +770,56 @@ component RecentFileRow inherits Rectangle {
     }
 }
 
+component DesktopContextMenu inherits Rectangle {
+    callback open-applications();
+    callback arrange-icons();
+    callback open-command();
+    callback close();
+
+    width: 218px;
+    height: 154px;
+    background: #0b1420f4;
+    border-radius: 13px;
+    border-width: 1px;
+    border-color: #ffffff28;
+    clip: true;
+
+    VerticalLayout {
+        padding: 9px;
+        spacing: 7px;
+
+        ShellAction {
+            label: "Applications";
+            icon-name: "apps";
+            compact: true;
+            fill: true;
+            clicked => {
+                root.open-applications();
+            }
+        }
+
+        ShellAction {
+            label: "Arrange icons";
+            icon-name: "desktop";
+            compact: true;
+            fill: true;
+            clicked => {
+                root.arrange-icons();
+            }
+        }
+
+        ShellAction {
+            label: "Command";
+            icon-name: "command";
+            compact: true;
+            fill: true;
+            clicked => {
+                root.open-command();
+            }
+        }
+    }
+}
+
 export component Desktop inherits Rectangle {
     in property <string> accent: "#4a90e2";
     in property <string> clock-text;
@@ -243,6 +831,7 @@ export component Desktop inherits Rectangle {
     in property <[LauncherApp]> featured-apps;
     in property <[LauncherApp]> recent-apps;
     in property <[LauncherApp]> active-apps;
+    in property <[DesktopWindowEntry]> desktop-windows;
     in property <[DesktopFile]> recent-files;
     in property <[DesktopShortcutEntry]> desktop-shortcuts;
     in property <string> selected-shortcut-id;
@@ -259,11 +848,20 @@ export component Desktop inherits Rectangle {
     in property <bool> desktop: root.width >= 900px;
     in property <bool> wide: root.width >= 1180px;
     in property <bool> compact: root.width < 700px;
+    in-out property <bool> context-menu-open: false;
+    in-out property <length> context-menu-x: 20px;
+    in-out property <length> context-menu-y: 20px;
 
     callback show-launcher();
     callback show-command-surface();
     callback show-overview();
     callback launch-app(string);
+    callback focus-window(string);
+    callback minimize-window(string);
+    callback maximize-window(string);
+    callback close-window(string);
+    callback move-window(string, int, int, int, int);
+    callback resize-window(string, int, int);
     callback open-file(string);
     callback select-desktop-shortcut(string);
     callback clear-desktop-shortcut-selection();
@@ -343,6 +941,23 @@ export component Desktop inherits Rectangle {
         background: root.phone ? #03070c66 : #03070c36;
     }
 
+    desktop-touch := TouchArea {
+        width: parent.width;
+        height: parent.height;
+
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down && event.button == PointerEventButton.right {
+                desktop-focus.focus();
+                root.clear-desktop-shortcut-selection();
+                root.context-menu-x = min(max(self.mouse-x, 8px), root.width - 226px);
+                root.context-menu-y = min(max(self.mouse-y, 8px), root.height - 162px);
+                root.context-menu-open = true;
+            } else if event.kind == PointerEventKind.down && event.button == PointerEventButton.left {
+                root.context-menu-open = false;
+            }
+        }
+    }
+
     Rectangle {
         x: root.phone ? -220px : -160px;
         y: root.phone ? -220px : -180px;
@@ -392,6 +1007,13 @@ export component Desktop inherits Rectangle {
         lane-touch := TouchArea {
             pointer-event(event) => {
                 if event.button != PointerEventButton.left {
+                    if event.button == PointerEventButton.right && event.kind == PointerEventKind.down {
+                        desktop-focus.focus();
+                        root.clear-desktop-shortcut-selection();
+                        root.context-menu-x = min(max(self.mouse-x + parent.x, 8px), root.width - 226px);
+                        root.context-menu-y = min(max(self.mouse-y + parent.y, 8px), root.height - 162px);
+                        root.context-menu-open = true;
+                    }
                     return;
                 }
 
@@ -468,45 +1090,6 @@ export component Desktop inherits Rectangle {
             }
         }
 
-        if root.desktop: Rectangle {
-            x: 8px;
-            y: parent.height - 54px;
-            width: parent.width - 16px;
-            height: 42px;
-            background: #08111bcc;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: #ffffff18;
-
-            HorizontalLayout {
-                padding-left: 8px;
-                padding-right: 8px;
-                spacing: 6px;
-                alignment: center;
-
-                Text {
-                    text: root.selected-shortcut-id == ""
-                        ? "Drag to select"
-                        : "Ctrl + arrows move";
-                    color: ShellTheme.text-muted;
-                    font-size: 9px;
-                    horizontal-stretch: 1;
-                    overflow: elide;
-                }
-
-                ShellAction {
-                    label: "Arrange";
-                    icon-name: "apps";
-                    compact: true;
-                    tiny: true;
-
-                    clicked => {
-                        desktop-focus.focus();
-                        root.auto-arrange-desktop-shortcuts(lane.max-shortcut-x, lane.max-shortcut-y);
-                    }
-                }
-            }
-        }
     }
 
     Rectangle {
@@ -606,6 +1189,87 @@ export component Desktop inherits Rectangle {
                     }
                 }
             }
+        }
+    }
+
+    for window in root.desktop-windows: WorkspaceWindow {
+        app-id: window.id;
+        title: window.name;
+        detail: window.detail;
+        icon-text: window.icon_text;
+        icon: window.icon;
+        focused: window.focused;
+        minimized: window.minimized;
+        maximized: window.maximized;
+        max-x: max(0, ((root.width - min(window.width * 1px, root.width - 24px)) / 1px));
+        max-y: max(0, ((root.height - min(window.height * 1px, root.height - 20px)) / 1px));
+        x: window.maximized
+            ? 12px
+            : root.phone
+            ? 12px + self.drag-offset-x
+            : min(window.x, self.max-x) * 1px + self.drag-offset-x;
+        y: window.maximized
+            ? 12px
+            : root.phone
+            ? 14px + self.drag-offset-y
+            : min(window.y, self.max-y) * 1px + self.drag-offset-y;
+        width: window.maximized
+            ? root.width - 24px
+            : root.phone
+            ? root.width - 24px
+            : max(280px, min(window.width * 1px + self.resize-offset-x, root.width - 24px));
+        height: window.maximized
+            ? root.height - 24px
+            : root.phone
+            ? root.height - 24px
+            : max(240px, min(window.height * 1px + self.resize-offset-y, root.height - 20px));
+
+        focus-requested(id) => {
+            root.focus-window(id);
+        }
+
+        minimized-requested(id) => {
+            root.minimize-window(id);
+        }
+
+        maximized-requested(id) => {
+            root.maximize-window(id);
+        }
+
+        closed-requested(id) => {
+            root.close-window(id);
+        }
+
+        moved(id, x, y, max-x, max-y) => {
+            root.move-window(id, x, y, max-x, max-y);
+        }
+
+        resized(id, width, height) => {
+            root.resize-window(id, width, height);
+        }
+    }
+
+    if root.context-menu-open: DesktopContextMenu {
+        x: root.context-menu-x;
+        y: root.context-menu-y;
+
+        open-applications => {
+            root.context-menu-open = false;
+            root.show-launcher();
+        }
+
+        arrange-icons => {
+            root.context-menu-open = false;
+            root.auto-arrange-desktop-shortcuts(lane.max-shortcut-x, lane.max-shortcut-y);
+        }
+
+        open-command => {
+            root.context-menu-open = false;
+            root.show-command-surface();
+        }
+
+        close => {
+            root.context-menu-open = false;
         }
     }
 }

@@ -9,6 +9,7 @@ rust-version.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 libc.workspace = true
+png.workspace = true
 seatshell-common.workspace = true
 seatshell-config.workspace = true
 seatshell-notifications = { path = "../seatshell-notifications" }

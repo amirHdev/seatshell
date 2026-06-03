@@ -4090,6 +4090,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "libc",
+ "png 0.18.1",
  "seatshell-common",
  "seatshell-config",
  "seatshell-notifications",

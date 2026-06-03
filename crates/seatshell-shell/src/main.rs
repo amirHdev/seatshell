@@ -11,6 +11,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     fs,
+    io::BufWriter,
     path::{Path, PathBuf},
     process::Stdio,
     rc::Rc,
@@ -35,6 +36,7 @@ fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();
     let windowed = args.iter().any(|arg| arg == "--windowed");
     let requested_window_size = requested_window_size(&args);
+    let requested_screenshot_path = requested_screenshot_path(&args);
     let requested_view = requested_view(&args);
 
     if request_remote_view(requested_view)? {
@@ -86,6 +88,29 @@ fn main() -> Result<()> {
         None,
         &running_counts.borrow(),
     ));
+    let shell_windows = Rc::new(RefCell::new(Vec::<ShellWindowState>::new()));
+    if requested_screenshot_path.is_some() {
+        for app in featured_apps.iter().take(2) {
+            open_shell_window(app, &shell_windows);
+        }
+    }
+    ui.set_desktop_windows(desktop_window_model(&apps, &shell_windows.borrow()));
+    if requested_screenshot_path.is_some() {
+        let visual_counts =
+            visual_running_counts(&running_counts.borrow(), &shell_windows.borrow());
+        ui.set_active_apps(launcher_model(
+            &active_apps(&apps, &visual_counts, 5),
+            &favorite_ids,
+            None,
+            &visual_counts,
+        ));
+        ui.set_panel_apps(launcher_model(
+            &taskbar_apps(&apps, &favorite_ids, &visual_counts, 5),
+            &favorite_ids,
+            None,
+            &visual_counts,
+        ));
+    }
     ui.set_recent_files(recent_file_model(&recent_files));
     ui.set_desktop_shortcuts(desktop_shortcut_model(
         &featured_apps,
@@ -133,19 +158,9 @@ fn main() -> Result<()> {
     ui.set_app_count(apps.len() as i32);
     ui.set_session_count(sessions.len() as i32);
     ui.set_user_name(current_username().into());
-    let resize_timer = Timer::default();
     if windowed && let Some((width, height)) = requested_window_size {
-        let weak = ui.as_weak();
-        resize_timer.start(
-            TimerMode::SingleShot,
-            Duration::from_millis(150),
-            move || {
-                if let Some(ui) = weak.upgrade() {
-                    ui.window()
-                        .set_size(slint::PhysicalSize::new(width, height));
-                }
-            },
-        );
+        ui.set_requested_width(width as i32);
+        ui.set_requested_height(height as i32);
     }
 
     let weak = ui.as_weak();
@@ -479,6 +494,7 @@ fn main() -> Result<()> {
         let recent_app_ids = Rc::clone(&recent_app_ids);
         let selected_app_id = Rc::clone(&selected_app_id);
         let running_counts = Rc::clone(&running_counts);
+        let shell_windows = Rc::clone(&shell_windows);
         let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
         let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
         let weak = ui.as_weak();
@@ -491,6 +507,8 @@ fn main() -> Result<()> {
 
             *running_counts.borrow_mut() = latest;
             if let Some(ui) = weak.upgrade() {
+                let visual_counts =
+                    visual_running_counts(&running_counts.borrow(), &shell_windows.borrow());
                 refresh_app_models(
                     &ui,
                     &all_apps,
@@ -498,10 +516,11 @@ fn main() -> Result<()> {
                     &favorite_app_ids.borrow(),
                     &recent_app_ids.borrow(),
                     selected_app_id.borrow().as_deref(),
-                    &running_counts.borrow(),
+                    &visual_counts,
                     &desktop_shortcut_positions.borrow(),
                     &selected_desktop_shortcut_ids.borrow(),
                 );
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
             }
         });
     }
@@ -539,26 +558,70 @@ fn main() -> Result<()> {
         let selected_app_id = Rc::clone(&selected_app_id);
         let notifications = Arc::clone(&notifications);
         let running_counts = Rc::clone(&running_counts);
+        let shell_windows = Rc::clone(&shell_windows);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
         let weak = ui.as_weak();
         ui.on_launcher_accept_search(move || {
             if let Some(app) = selected_app(
                 filtered_apps.borrow().as_slice(),
                 selected_app_id.borrow().as_deref(),
             ) {
-                launch_app(app);
+                let already_open = shell_window_is_open(&shell_windows.borrow(), &app.id);
+                if !already_open {
+                    launch_app(app);
+                }
+                open_shell_window(app, &shell_windows);
                 record_recent_launch(app, &recent_app_ids);
                 notifications.push(Notification {
-                    title: format!("Opened {}", app.name),
+                    title: if already_open {
+                        format!("Focused {}", app.name)
+                    } else {
+                        format!("Opened {}", app.name)
+                    },
                     body: app_detail(app),
                     urgency: NotificationUrgency::Low,
                 });
 
                 if let Some(ui) = weak.upgrade() {
+                    let visual_counts =
+                        visual_running_counts(&running_counts.borrow(), &shell_windows.borrow());
                     ui.set_recent_apps(launcher_model(
                         &recent_apps(&recent_model_apps, &recent_app_ids.borrow(), 6),
                         &favorite_app_ids.borrow(),
                         None,
-                        &running_counts.borrow(),
+                        &visual_counts,
+                    ));
+                    ui.set_panel_apps(launcher_model(
+                        &taskbar_apps(
+                            &recent_model_apps,
+                            &favorite_app_ids.borrow(),
+                            &visual_counts,
+                            5,
+                        ),
+                        &favorite_app_ids.borrow(),
+                        None,
+                        &visual_counts,
+                    ));
+                    ui.set_active_apps(launcher_model(
+                        &active_apps(&recent_model_apps, &visual_counts, 5),
+                        &favorite_app_ids.borrow(),
+                        None,
+                        &visual_counts,
+                    ));
+                    ui.set_desktop_shortcuts(desktop_shortcut_model(
+                        &featured_or_favorite_apps(
+                            &recent_model_apps,
+                            &favorite_app_ids.borrow(),
+                            6,
+                        ),
+                        &visual_counts,
+                        &desktop_shortcut_positions.borrow(),
+                        &selected_desktop_shortcut_ids.borrow(),
+                    ));
+                    ui.set_desktop_windows(desktop_window_model(
+                        &recent_model_apps,
+                        &shell_windows.borrow(),
                     ));
                     ui.set_show_launcher(false);
                     ui.set_show_notifications(false);
@@ -575,6 +638,9 @@ fn main() -> Result<()> {
     let launch_recent_app_ids = Rc::clone(&recent_app_ids);
     let launch_notifications = Arc::clone(&notifications);
     let launch_running_counts = Rc::clone(&running_counts);
+    let launch_shell_windows = Rc::clone(&shell_windows);
+    let launch_desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+    let launch_selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
     let weak = ui.as_weak();
     ui.on_launch_app(move |app_id| {
         tracing::info!(app_id = %app_id, "launcher app requested");
@@ -584,20 +650,54 @@ fn main() -> Result<()> {
             return;
         };
 
-        launch_app(app);
+        let already_open = shell_window_is_open(&launch_shell_windows.borrow(), &app.id);
+        if !already_open {
+            launch_app(app);
+        }
+        open_shell_window(app, &launch_shell_windows);
         record_recent_launch(app, &launch_recent_app_ids);
         launch_notifications.push(Notification {
-            title: format!("Opened {}", app.name),
+            title: if already_open {
+                format!("Focused {}", app.name)
+            } else {
+                format!("Opened {}", app.name)
+            },
             body: app_detail(app),
             urgency: NotificationUrgency::Low,
         });
 
         if let Some(ui) = weak.upgrade() {
+            let visual_counts = visual_running_counts(
+                &launch_running_counts.borrow(),
+                &launch_shell_windows.borrow(),
+            );
             ui.set_recent_apps(launcher_model(
                 &recent_apps(&launch_apps, &launch_recent_app_ids.borrow(), 6),
                 &launch_favorites.borrow(),
                 None,
-                &launch_running_counts.borrow(),
+                &visual_counts,
+            ));
+            ui.set_panel_apps(launcher_model(
+                &taskbar_apps(&launch_apps, &launch_favorites.borrow(), &visual_counts, 5),
+                &launch_favorites.borrow(),
+                None,
+                &visual_counts,
+            ));
+            ui.set_active_apps(launcher_model(
+                &active_apps(&launch_apps, &visual_counts, 5),
+                &launch_favorites.borrow(),
+                None,
+                &visual_counts,
+            ));
+            ui.set_desktop_shortcuts(desktop_shortcut_model(
+                &featured_or_favorite_apps(&launch_apps, &launch_favorites.borrow(), 6),
+                &visual_counts,
+                &launch_desktop_shortcut_positions.borrow(),
+                &launch_selected_desktop_shortcut_ids.borrow(),
+            ));
+            ui.set_desktop_windows(desktop_window_model(
+                &launch_apps,
+                &launch_shell_windows.borrow(),
             ));
             ui.set_show_launcher(false);
             ui.set_show_overview(false);
@@ -608,6 +708,112 @@ fn main() -> Result<()> {
             ui.set_show_settings(false);
         }
     });
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_focus_window(move |app_id| {
+            focus_shell_window(&app_id, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_minimize_window(move |app_id| {
+            minimize_shell_window(&app_id, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                let visual_counts =
+                    visual_running_counts(&running_counts.borrow(), &shell_windows.borrow());
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+                ui.set_panel_apps(launcher_model(
+                    &taskbar_apps(&all_apps, &favorite_ids.borrow(), &visual_counts, 5),
+                    &favorite_ids.borrow(),
+                    None,
+                    &visual_counts,
+                ));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_maximize_window(move |app_id| {
+            toggle_maximized_shell_window(&app_id, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let favorite_ids = Rc::clone(&favorite_app_ids);
+        let running_counts = Rc::clone(&running_counts);
+        let desktop_shortcut_positions = Rc::clone(&desktop_shortcut_positions);
+        let selected_desktop_shortcut_ids = Rc::clone(&selected_desktop_shortcut_ids);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_close_window(move |app_id| {
+            close_shell_window(&app_id, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                let visual_counts =
+                    visual_running_counts(&running_counts.borrow(), &shell_windows.borrow());
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+                ui.set_panel_apps(launcher_model(
+                    &taskbar_apps(&all_apps, &favorite_ids.borrow(), &visual_counts, 5),
+                    &favorite_ids.borrow(),
+                    None,
+                    &visual_counts,
+                ));
+                ui.set_active_apps(launcher_model(
+                    &active_apps(&all_apps, &visual_counts, 5),
+                    &favorite_ids.borrow(),
+                    None,
+                    &visual_counts,
+                ));
+                ui.set_desktop_shortcuts(desktop_shortcut_model(
+                    &featured_or_favorite_apps(&all_apps, &favorite_ids.borrow(), 6),
+                    &visual_counts,
+                    &desktop_shortcut_positions.borrow(),
+                    &selected_desktop_shortcut_ids.borrow(),
+                ));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_resize_window(move |app_id, width, height| {
+            resize_shell_window(&app_id, width, height, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+            }
+        });
+    }
+
+    {
+        let all_apps = Rc::clone(&all_apps);
+        let shell_windows = Rc::clone(&shell_windows);
+        let weak = ui.as_weak();
+        ui.on_move_window(move |app_id, x, y, max_x, max_y| {
+            move_shell_window(&app_id, x, y, max_x, max_y, &shell_windows);
+            if let Some(ui) = weak.upgrade() {
+                ui.set_desktop_windows(desktop_window_model(&all_apps, &shell_windows.borrow()));
+            }
+        });
+    }
 
     {
         let all_apps = Rc::clone(&all_apps);
@@ -1038,7 +1244,25 @@ fn main() -> Result<()> {
         });
     }
 
-    ui.run()?;
+    if let Some(screenshot_path) = requested_screenshot_path {
+        let weak = ui.as_weak();
+        let screenshot_timer = Timer::default();
+        screenshot_timer.start(
+            TimerMode::SingleShot,
+            Duration::from_millis(450),
+            move || {
+                if let Some(ui) = weak.upgrade()
+                    && let Err(error) = write_window_snapshot_png(&ui, &screenshot_path)
+                {
+                    tracing::warn!(%error, path = %screenshot_path.display(), "failed to write shell screenshot");
+                }
+                let _ = slint::quit_event_loop();
+            },
+        );
+        ui.run()?;
+    } else {
+        ui.run()?;
+    }
     Ok(())
 }
 
@@ -1301,6 +1525,32 @@ fn requested_window_size(args: &[String]) -> Option<(u32, u32)> {
         .map(|(width, height)| (width.clamp(280, 3840), height.clamp(320, 2160)))
 }
 
+fn requested_screenshot_path(args: &[String]) -> Option<PathBuf> {
+    args.iter()
+        .find_map(|arg| arg.strip_prefix("--screenshot="))
+        .filter(|path| !path.trim().is_empty())
+        .map(PathBuf::from)
+}
+
+fn write_window_snapshot_png(ui: &AppWindow, path: &Path) -> Result<()> {
+    let snapshot = ui
+        .window()
+        .take_snapshot()
+        .context("failed to take Slint window snapshot")?;
+    let file = fs::File::create(path)
+        .with_context(|| format!("failed to create screenshot at {}", path.display()))?;
+    let mut encoder = png::Encoder::new(BufWriter::new(file), snapshot.width(), snapshot.height());
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder
+        .write_header()
+        .context("failed to write PNG header")?;
+    writer
+        .write_image_data(snapshot.as_bytes())
+        .context("failed to write PNG image data")?;
+    Ok(())
+}
+
 fn request_remote_view(view: ShellView) -> Result<bool> {
     if matches!(view, ShellView::None) {
         return Ok(false);
@@ -1345,6 +1595,158 @@ fn request_remote_view(view: ShellView) -> Result<bool> {
         proxy.call_method(method, &()).await?;
         Ok(true)
     })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ShellWindowState {
+    app_id: String,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    minimized: bool,
+    maximized: bool,
+}
+
+fn desktop_window_model(
+    apps: &[apps::AppEntry],
+    windows: &[ShellWindowState],
+) -> ModelRc<DesktopWindowEntry> {
+    ModelRc::new(VecModel::from(
+        windows
+            .iter()
+            .filter_map(|window| {
+                let app = apps.iter().find(|app| app.id == window.app_id)?;
+                Some(DesktopWindowEntry {
+                    id: app.id.clone().into(),
+                    name: app.name.clone().into(),
+                    detail: app_detail(app).into(),
+                    icon_text: apps::app_icon_text(app).into(),
+                    icon: load_app_icon(app),
+                    focused: !window.minimized
+                        && windows
+                            .iter()
+                            .rev()
+                            .find(|window| !window.minimized)
+                            .is_some_and(|focused| focused.app_id == window.app_id),
+                    minimized: window.minimized,
+                    maximized: window.maximized,
+                    x: window.x,
+                    y: window.y,
+                    width: window.width,
+                    height: window.height,
+                })
+            })
+            .collect::<Vec<_>>(),
+    ))
+}
+
+fn shell_window_is_open(windows: &[ShellWindowState], app_id: &str) -> bool {
+    windows.iter().any(|window| window.app_id == app_id)
+}
+
+fn open_shell_window(app: &apps::AppEntry, windows: &Rc<RefCell<Vec<ShellWindowState>>>) {
+    let mut windows = windows.borrow_mut();
+    if let Some(index) = windows.iter().position(|window| window.app_id == app.id) {
+        let mut window = windows.remove(index);
+        window.minimized = false;
+        windows.push(window);
+        return;
+    }
+
+    let offset = (windows.len() as i32 * 34).min(136);
+    windows.push(ShellWindowState {
+        app_id: app.id.clone(),
+        x: 336 + offset,
+        y: 78 + offset,
+        width: 560,
+        height: 380,
+        minimized: false,
+        maximized: false,
+    });
+}
+
+fn focus_shell_window(app_id: &str, windows: &Rc<RefCell<Vec<ShellWindowState>>>) {
+    let mut windows = windows.borrow_mut();
+    if let Some(index) = windows.iter().position(|window| window.app_id == app_id) {
+        let mut window = windows.remove(index);
+        window.minimized = false;
+        windows.push(window);
+    }
+}
+
+fn minimize_shell_window(app_id: &str, windows: &Rc<RefCell<Vec<ShellWindowState>>>) {
+    if let Some(window) = windows
+        .borrow_mut()
+        .iter_mut()
+        .find(|window| window.app_id == app_id)
+    {
+        window.minimized = true;
+    }
+}
+
+fn close_shell_window(app_id: &str, windows: &Rc<RefCell<Vec<ShellWindowState>>>) {
+    windows
+        .borrow_mut()
+        .retain(|window| window.app_id != app_id);
+}
+
+fn move_shell_window(
+    app_id: &str,
+    x: i32,
+    y: i32,
+    max_x: i32,
+    max_y: i32,
+    windows: &Rc<RefCell<Vec<ShellWindowState>>>,
+) {
+    let mut windows = windows.borrow_mut();
+    if let Some(index) = windows.iter().position(|window| window.app_id == app_id) {
+        let mut window = windows.remove(index);
+        window.x = x.clamp(0, max_x.max(0));
+        window.y = y.clamp(0, max_y.max(0));
+        window.minimized = false;
+        window.maximized = false;
+        windows.push(window);
+    }
+}
+
+fn toggle_maximized_shell_window(app_id: &str, windows: &Rc<RefCell<Vec<ShellWindowState>>>) {
+    let mut windows = windows.borrow_mut();
+    if let Some(index) = windows.iter().position(|window| window.app_id == app_id) {
+        let mut window = windows.remove(index);
+        window.minimized = false;
+        window.maximized = !window.maximized;
+        windows.push(window);
+    }
+}
+
+fn resize_shell_window(
+    app_id: &str,
+    width: i32,
+    height: i32,
+    windows: &Rc<RefCell<Vec<ShellWindowState>>>,
+) {
+    let mut windows = windows.borrow_mut();
+    if let Some(index) = windows.iter().position(|window| window.app_id == app_id) {
+        let mut window = windows.remove(index);
+        window.width = width.clamp(280, 2400);
+        window.height = height.clamp(240, 1600);
+        window.minimized = false;
+        window.maximized = false;
+        windows.push(window);
+    }
+}
+
+fn visual_running_counts(
+    running_counts: &HashMap<String, i32>,
+    windows: &[ShellWindowState],
+) -> HashMap<String, i32> {
+    let mut counts = running_counts.clone();
+    for window in windows {
+        let count = counts.entry(window.app_id.clone()).or_default();
+        *count = (*count).max(1);
+    }
+    counts
 }
 
 fn launcher_model(

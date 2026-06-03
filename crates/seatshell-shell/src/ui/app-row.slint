@@ -59,6 +59,10 @@ export component AppRow inherits Rectangle {
             }
 
             if root.icon.width == 0 || root.icon.height == 0: Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
                 text: root.icon-text;
                 color: root.selected || touch.has-hover ? #1a120d : ShellTheme.text-primary;
                 font-size: root.tiny ? 9px : root.compact ? 10px : 12px;
@@ -121,6 +125,10 @@ export component AppRow inherits Rectangle {
             }
 
             Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
                 text: root.favorite ? "On" : "Pin";
                 color: root.favorite ? ShellTheme.text-accent : ShellTheme.text-secondary;
                 font-size: root.tiny ? 8px : 10px;

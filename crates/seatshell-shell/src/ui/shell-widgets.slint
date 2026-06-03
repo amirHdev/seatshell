@@ -219,6 +219,10 @@ export component ShellIcon inherits Rectangle {
     }
 
     if root.name == "close": Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         text: "x";
         color: root.icon-color;
         font-size: parent.height * 0.7;
@@ -228,6 +232,10 @@ export component ShellIcon inherits Rectangle {
     }
 
     if root.name == "command": Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         text: ">";
         color: root.icon-color;
         font-size: parent.height * 0.7;
@@ -405,15 +413,19 @@ export component ShellAction inherits Rectangle {
             border-color: root.active ? ShellTheme.accent : #ffffff1c;
 
             if root.icon-name != "": ShellIcon {
-                x: 4px;
-                y: 4px;
                 width: parent.width - 8px;
                 height: parent.height - 8px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
                 name: root.icon-name;
                 icon-color: root.active ? #1a120d : ShellTheme.text-primary;
             }
 
             if root.icon-name == "": Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
                 text: root.icon-text;
                 color: root.active ? #1a120d : ShellTheme.text-primary;
                 font-size: root.tiny ? 8px : 9px;
@@ -540,15 +552,19 @@ export component DockItem inherits Rectangle {
             }
 
             if (root.icon.width == 0 || root.icon.height == 0) && root.icon-name != "": ShellIcon {
-                x: 5px;
-                y: 5px;
                 width: parent.width - 10px;
                 height: parent.height - 10px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
                 name: root.icon-name;
                 icon-color: root.active ? #1a120d : ShellTheme.text-primary;
             }
 
             if (root.icon.width == 0 || root.icon.height == 0) && root.icon-name == "": Text {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
                 text: root.icon-text;
                 color: root.active ? #1a120d : ShellTheme.text-primary;
                 font-size: root.tiny ? 9px : 10px;

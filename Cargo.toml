@@ -21,6 +21,7 @@ version = "0.1.0"
 anyhow = "1"
 chrono = "0.4"
 libc = "0.2"
+png = "0.18"
 serde = { version = "1", features = ["derive"] }
 slint = "1"
 slint-build = "1"

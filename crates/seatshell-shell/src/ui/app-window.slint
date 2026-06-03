@@ -4,19 +4,22 @@ import { CommandSurface } from "command-surface.slint";
 import { Launcher, LauncherApp } from "launcher.slint";
 import { NotificationCenter, NotificationEntry } from "notification-center.slint";
 import { Overview, UserSession } from "overview.slint";
-import { DesktopFile, DesktopShortcutEntry } from "desktop.slint";
+import { DesktopFile, DesktopShortcutEntry, DesktopWindowEntry } from "desktop.slint";
 import { PowerMenu } from "power-menu.slint";
 import { SettingsPage } from "settings.slint";
 import { SystemCenter } from "system-center.slint";
 import { ShellTheme } from "shell-theme.slint";
 
 export component AppWindow inherits Window {
+    in property <int> requested-width: 1180;
+    in property <int> requested-height: 680;
     in property <int> panel-height: root.width < 700px ? 68 : 60;
     in property <string> accent: "#4a90e2";
     in property <[LauncherApp]> launcher-apps;
     in property <[LauncherApp]> featured-apps;
     in property <[LauncherApp]> recent-apps;
     in property <[LauncherApp]> active-apps;
+    in property <[DesktopWindowEntry]> desktop-windows;
     in property <[DesktopFile]> recent-files;
     in property <[DesktopShortcutEntry]> desktop-shortcuts;
     in property <string> selected-desktop-shortcut-id;
@@ -52,6 +55,12 @@ export component AppWindow inherits Window {
     callback toggle-overview();
     callback show-desktop();
     callback launch-app(string);
+    callback focus-window(string);
+    callback minimize-window(string);
+    callback maximize-window(string);
+    callback close-window(string);
+    callback move-window(string, int, int, int, int);
+    callback resize-window(string, int, int);
     callback toggle-command-surface();
     callback toggle-notifications();
     callback request-shell-action(string);
@@ -78,8 +87,8 @@ export component AppWindow inherits Window {
     callback activate-current-session();
 
     title: "SeatShell";
-    width: 1180px;
-    height: 680px;
+    width: root.requested-width * 1px;
+    height: root.requested-height * 1px;
     no-frame: !root.windowed;
     full-screen: !root.windowed;
     background: ShellTheme.background;
@@ -209,6 +218,7 @@ export component AppWindow inherits Window {
                 featured-apps: root.featured-apps;
                 recent-apps: root.recent-apps;
                 active-apps: root.active-apps;
+                desktop-windows: root.desktop-windows;
                 recent-files: root.recent-files;
                 desktop-shortcuts: root.desktop-shortcuts;
                 selected-shortcut-id: root.selected-desktop-shortcut-id;
@@ -232,6 +242,24 @@ export component AppWindow inherits Window {
                 }
                 launch-app(id) => {
                     root.launch-app(id);
+                }
+                focus-window(id) => {
+                    root.focus-window(id);
+                }
+                minimize-window(id) => {
+                    root.minimize-window(id);
+                }
+                maximize-window(id) => {
+                    root.maximize-window(id);
+                }
+                close-window(id) => {
+                    root.close-window(id);
+                }
+                move-window(id, x, y, max-x, max-y) => {
+                    root.move-window(id, x, y, max-x, max-y);
+                }
+                resize-window(id, width, height) => {
+                    root.resize-window(id, width, height);
                 }
                 open-file(path) => {
                     root.open-file(path);
