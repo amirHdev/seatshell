@@ -18,6 +18,7 @@ export component AppRow inherits Rectangle {
 
     height: root.tiny ? 46px : root.compact ? 52px : 58px;
     horizontal-stretch: 1;
+    vertical-stretch: 0;
     border-radius: root.compact ? 11px : 14px;
     border-width: root.selected || touch.has-hover ? 1px : 0px;
     border-color: root.selected ? ShellTheme.accent : ShellTheme.outline;
@@ -37,10 +38,14 @@ export component AppRow inherits Rectangle {
     }
 
     HorizontalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         padding-left: root.tiny ? 7px : root.compact ? 9px : 12px;
         padding-right: root.tiny ? 7px : root.compact ? 9px : 12px;
         spacing: root.tiny ? 7px : root.compact ? 9px : 12px;
-        alignment: center;
+        alignment: start;
 
         Rectangle {
             width: root.tiny ? 28px : root.compact ? 32px : 38px;
@@ -73,6 +78,7 @@ export component AppRow inherits Rectangle {
         }
 
         VerticalLayout {
+            height: root.tiny ? 28px : root.compact ? 34px : 40px;
             spacing: 2px;
             horizontal-stretch: 1;
 
@@ -111,8 +117,8 @@ export component AppRow inherits Rectangle {
         }
 
         if root.show-favorite-toggle: Rectangle {
-            width: root.tiny ? 32px : root.compact ? 40px : 46px;
-            height: root.tiny ? 22px : root.compact ? 24px : 26px;
+            width: root.tiny ? 34px : root.compact ? 44px : 50px;
+            height: root.tiny ? 24px : root.compact ? 26px : 28px;
             background: root.favorite ? ShellTheme.surface-accent : #ffffff0d;
             border-radius: 8px;
             border-width: 1px;

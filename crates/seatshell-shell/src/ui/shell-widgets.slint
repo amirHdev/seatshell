@@ -223,9 +223,9 @@ export component ShellIcon inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        text: "x";
+        text: "X";
         color: root.icon-color;
-        font-size: parent.height * 0.7;
+        font-size: parent.height * 0.5;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -399,6 +399,10 @@ export component ShellAction inherits Rectangle {
     }
 
     HorizontalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         padding-left: root.tiny ? 5px : root.compact ? 8px : 11px;
         padding-right: root.tiny ? 5px : root.compact ? 8px : 11px;
         spacing: root.tiny ? 4px : 7px;
@@ -473,6 +477,10 @@ export component ShellPill inherits Rectangle {
     }
 
     Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         text: root.label;
         color: ShellTheme.text-secondary;
         font-size: root.tiny ? 8px : 10px;
@@ -530,6 +538,10 @@ export component DockItem inherits Rectangle {
     }
 
     HorizontalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         padding-left: root.tiny ? 6px : 8px;
         padding-right: root.tiny ? 6px : 8px;
         spacing: root.tiny ? 4px : 6px;

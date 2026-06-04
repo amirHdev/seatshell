@@ -49,6 +49,8 @@ component DesktopShortcut inherits Rectangle {
 
     in-out property <length> drag-offset-x: 0px;
     in-out property <length> drag-offset-y: 0px;
+    in-out property <length> drag-start-x: 0px;
+    in-out property <length> drag-start-y: 0px;
     out property <bool> dragging: root.drag-offset-x > 6px
         || root.drag-offset-x < -6px
         || root.drag-offset-y > 6px
@@ -77,8 +79,8 @@ component DesktopShortcut inherits Rectangle {
 
         moved => {
             if root.draggable && self.pressed {
-                root.drag-offset-x = self.mouse-x - self.pressed-x;
-                root.drag-offset-y = self.mouse-y - self.pressed-y;
+                root.drag-offset-x = root.x + self.mouse-x - self.pressed-x - root.drag-start-x;
+                root.drag-offset-y = root.y + self.mouse-y - self.pressed-y - root.drag-start-y;
             }
         }
 
@@ -88,7 +90,8 @@ component DesktopShortcut inherits Rectangle {
             }
 
             if event.kind == PointerEventKind.down {
-                root.selection-requested(root.app-id);
+                root.drag-start-x = root.x;
+                root.drag-start-y = root.y;
             } else if event.kind == PointerEventKind.up {
                 if root.drag-offset-x > 6px || root.drag-offset-x < -6px || root.drag-offset-y > 6px || root.drag-offset-y < -6px {
                     root.moved(
@@ -98,10 +101,15 @@ component DesktopShortcut inherits Rectangle {
                         root.max-x,
                         root.max-y
                     );
+                    root.selection-requested(root.app-id);
+                } else {
+                    root.selection-requested(root.app-id);
                 }
 
                 root.drag-offset-x = 0px;
                 root.drag-offset-y = 0px;
+                root.drag-start-x = 0px;
+                root.drag-start-y = 0px;
             }
         }
 
@@ -136,51 +144,82 @@ component DesktopShortcut inherits Rectangle {
         }
     }
 
-    Rectangle {
-        width: root.compact ? 48px : 54px;
-        height: root.compact ? 48px : 54px;
-        x: (parent.width - self.width) / 2;
-        y: root.compact ? 8px : 10px;
-        border-radius: 14px;
-        background: root.active ? #33271ed9 : #101823d9;
-        border-width: 1px;
-        border-color: root.active ? ShellTheme.accent : #ffffff28;
+    VerticalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        spacing: 0px;
+        alignment: start;
 
-        if root.icon.width > 0 && root.icon.height > 0: Image {
-            source: root.icon;
-            width: root.compact ? 28px : 32px;
-            height: root.compact ? 28px : 32px;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
+        Rectangle {
+            background: transparent;
+            vertical-stretch: 1;
         }
 
-        if root.icon.width == 0 || root.icon.height == 0: Text {
-            x: 0px;
-            y: 0px;
+        VerticalLayout {
             width: parent.width;
-            height: parent.height;
-            text: root.icon-text;
-            color: root.active ? ShellTheme.text-accent : ShellTheme.text-primary;
-            font-size: root.compact ? 11px : 13px;
-            font-weight: 800;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
+            height: root.compact ? 78px : 90px;
+            spacing: root.compact ? 6px : 8px;
+            alignment: start;
 
-    Text {
-        text: root.label;
-        x: 4px;
-        y: root.compact ? 62px : 70px;
-        width: parent.width - 8px;
-        height: root.compact ? 28px : 34px;
-        color: ShellTheme.text-primary;
-        font-size: root.compact ? 10px : 11px;
-        font-weight: 600;
-        horizontal-alignment: center;
-        vertical-alignment: top;
-        wrap: word-wrap;
-        overflow: elide;
+            Rectangle {
+                width: parent.width;
+                height: root.compact ? 48px : 54px;
+                background: transparent;
+
+                Rectangle {
+                    width: root.compact ? 48px : 54px;
+                    height: root.compact ? 48px : 54px;
+                    x: (parent.width - self.width) / 2;
+                    y: 0px;
+                    background: root.active ? #33271ed9 : #101823d9;
+                    border-radius: 14px;
+                    border-width: 1px;
+                    border-color: root.active ? ShellTheme.accent : #ffffff28;
+
+                    if root.icon.width > 0 && root.icon.height > 0: Image {
+                        source: root.icon;
+                        width: root.compact ? 28px : 32px;
+                        height: root.compact ? 28px : 32px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        image-fit: contain;
+                    }
+
+                    if root.icon.width == 0 || root.icon.height == 0: Text {
+                        x: 0px;
+                        y: 0px;
+                        width: parent.width;
+                        height: parent.height;
+                        text: root.icon-text;
+                        color: root.active ? ShellTheme.text-accent : ShellTheme.text-primary;
+                        font-size: root.compact ? 11px : 13px;
+                        font-weight: 800;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Text {
+                text: root.label;
+                width: parent.width - 8px;
+                height: root.compact ? 24px : 28px;
+                horizontal-alignment: center;
+                color: ShellTheme.text-primary;
+                font-size: root.compact ? 10px : 11px;
+                font-weight: 600;
+                vertical-alignment: center;
+                wrap: word-wrap;
+                overflow: elide;
+            }
+        }
+
+        Rectangle {
+            background: transparent;
+            vertical-stretch: 1;
+        }
     }
 }
 
@@ -200,6 +239,10 @@ component WorkspaceWindow inherits Rectangle {
     in-out property <length> drag-offset-y: 0px;
     in-out property <length> resize-offset-x: 0px;
     in-out property <length> resize-offset-y: 0px;
+    in-out property <length> drag-start-x: 0px;
+    in-out property <length> drag-start-y: 0px;
+    in-out property <length> resize-start-width: 0px;
+    in-out property <length> resize-start-height: 0px;
 
     callback focus-requested(string);
     callback minimized-requested(string);
@@ -235,6 +278,8 @@ component WorkspaceWindow inherits Rectangle {
 
                 if event.kind == PointerEventKind.down {
                     root.focus-requested(root.app-id);
+                    root.drag-start-x = root.x;
+                    root.drag-start-y = root.y;
                 } else if event.kind == PointerEventKind.up {
                     if root.drag-offset-x > 3px || root.drag-offset-x < -3px || root.drag-offset-y > 3px || root.drag-offset-y < -3px {
                         root.moved(
@@ -248,13 +293,15 @@ component WorkspaceWindow inherits Rectangle {
 
                     root.drag-offset-x = 0px;
                     root.drag-offset-y = 0px;
+                    root.drag-start-x = 0px;
+                    root.drag-start-y = 0px;
                 }
             }
 
             moved => {
                 if self.pressed {
-                    root.drag-offset-x = self.mouse-x - self.pressed-x;
-                    root.drag-offset-y = self.mouse-y - self.pressed-y;
+                    root.drag-offset-x = root.x + self.mouse-x - self.pressed-x - root.drag-start-x;
+                    root.drag-offset-y = root.y + self.mouse-y - self.pressed-y - root.drag-start-y;
                 }
             }
         }
@@ -351,9 +398,9 @@ component WorkspaceWindow inherits Rectangle {
                 y: 0px;
                 width: parent.width;
                 height: parent.height;
-                text: "x";
+                text: "X";
                 color: close-touch.has-hover ? #ffffff : ShellTheme.text-secondary;
-                font-size: 13px;
+                font-size: 11px;
                 font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -407,6 +454,8 @@ component WorkspaceWindow inherits Rectangle {
 
                         if event.kind == PointerEventKind.down {
                             root.focus-requested(root.app-id);
+                            root.drag-start-x = root.x;
+                            root.drag-start-y = root.y;
                         } else if event.kind == PointerEventKind.up {
                             if !root.maximized
                                 && (root.drag-offset-x > 3px || root.drag-offset-x < -3px || root.drag-offset-y > 3px || root.drag-offset-y < -3px) {
@@ -421,13 +470,15 @@ component WorkspaceWindow inherits Rectangle {
 
                             root.drag-offset-x = 0px;
                             root.drag-offset-y = 0px;
+                            root.drag-start-x = 0px;
+                            root.drag-start-y = 0px;
                         }
                     }
 
                     moved => {
                         if self.pressed && !root.maximized {
-                            root.drag-offset-x = self.mouse-x - self.pressed-x;
-                            root.drag-offset-y = self.mouse-y - self.pressed-y;
+                            root.drag-offset-x = root.x + self.mouse-x - self.pressed-x - root.drag-start-x;
+                            root.drag-offset-y = root.y + self.mouse-y - self.pressed-y - root.drag-start-y;
                         }
                     }
                 }
@@ -565,9 +616,9 @@ component WorkspaceWindow inherits Rectangle {
                             y: 0px;
                             width: parent.width;
                             height: parent.height;
-                            text: "x";
+                            text: "X";
                             color: visible-close-touch.has-hover ? #ffffff : ShellTheme.text-secondary;
-                            font-size: 13px;
+                            font-size: 11px;
                             font-weight: 800;
                             horizontal-alignment: center;
                             vertical-alignment: center;
@@ -666,6 +717,8 @@ component WorkspaceWindow inherits Rectangle {
 
                 if event.kind == PointerEventKind.down {
                     root.focus-requested(root.app-id);
+                    root.resize-start-width = root.width;
+                    root.resize-start-height = root.height;
                 } else if event.kind == PointerEventKind.up {
                     root.resized(
                         root.app-id,
@@ -674,13 +727,15 @@ component WorkspaceWindow inherits Rectangle {
                     );
                     root.resize-offset-x = 0px;
                     root.resize-offset-y = 0px;
+                    root.resize-start-width = 0px;
+                    root.resize-start-height = 0px;
                 }
             }
 
             moved => {
                 if self.pressed {
-                    root.resize-offset-x = self.mouse-x - self.pressed-x;
-                    root.resize-offset-y = self.mouse-y - self.pressed-y;
+                    root.resize-offset-x = root.width + self.mouse-x - self.pressed-x - root.resize-start-width;
+                    root.resize-offset-y = root.height + self.mouse-y - self.pressed-y - root.resize-start-height;
                 }
             }
         }
@@ -711,6 +766,7 @@ component RecentFileRow inherits Rectangle {
 
     height: 38px;
     horizontal-stretch: 1;
+    vertical-stretch: 0;
     background: touch.has-hover ? #ffffff0f : transparent;
     border-radius: 9px;
 
@@ -723,6 +779,10 @@ component RecentFileRow inherits Rectangle {
     }
 
     HorizontalLayout {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         padding-left: 6px;
         padding-right: 6px;
         spacing: 9px;
@@ -747,6 +807,7 @@ component RecentFileRow inherits Rectangle {
         }
 
         VerticalLayout {
+            height: 28px;
             spacing: 0px;
             horizontal-stretch: 1;
 
@@ -851,6 +912,18 @@ export component Desktop inherits Rectangle {
     in-out property <bool> context-menu-open: false;
     in-out property <length> context-menu-x: 20px;
     in-out property <length> context-menu-y: 20px;
+    in-out property <length> info-widget-x: root.desktop ? root.width - (root.wide ? 346px : 322px) : 12px;
+    in-out property <length> info-widget-y: root.desktop ? 32px : 12px;
+    in-out property <length> files-widget-x: root.desktop ? root.width - (root.wide ? 346px : 322px) : 12px;
+    in-out property <length> files-widget-y: root.desktop ? 184px : 156px;
+    in-out property <length> info-widget-drag-offset-x: 0px;
+    in-out property <length> info-widget-drag-offset-y: 0px;
+    in-out property <length> info-widget-drag-start-x: 0px;
+    in-out property <length> info-widget-drag-start-y: 0px;
+    in-out property <length> files-widget-drag-offset-x: 0px;
+    in-out property <length> files-widget-drag-offset-y: 0px;
+    in-out property <length> files-widget-drag-start-x: 0px;
+    in-out property <length> files-widget-drag-start-y: 0px;
 
     callback show-launcher();
     callback show-command-surface();
@@ -987,22 +1060,12 @@ export component Desktop inherits Rectangle {
         in-out property <length> marquee-end-x: 0px;
         in-out property <length> marquee-end-y: 0px;
 
-        x: root.desktop ? 28px : 12px;
-        y: root.desktop
-            ? 28px
-            : root.phone
-                ? 142px
-                : root.recent-files.length > 0
-                    ? 292px
-                    : 156px;
-        width: root.desktop
-            ? root.wide ? 276px : 236px
-            : parent.width - 24px;
-        height: max(0px, root.desktop
-            ? parent.height - 56px
-            : parent.height - self.y - 12px);
+        x: 12px;
+        y: 12px;
+        width: parent.width - 24px;
+        height: parent.height - 24px;
         background: transparent;
-        clip: true;
+        clip: false;
 
         lane-touch := TouchArea {
             pointer-event(event) => {
@@ -1073,7 +1136,7 @@ export component Desktop inherits Rectangle {
             icon: shortcut.icon;
             active: shortcut.active;
             selected: shortcut.selected;
-            draggable: root.desktop;
+            draggable: true;
             compact: root.compact;
 
             selection-requested(app-id) => {
@@ -1093,14 +1156,45 @@ export component Desktop inherits Rectangle {
     }
 
     Rectangle {
-        x: root.desktop ? parent.width - (root.wide ? 346px : 322px) : 12px;
-        y: root.desktop ? 32px : 12px;
+        x: min(max(root.info-widget-x + root.info-widget-drag-offset-x, 12px), root.width - self.width - 12px);
+        y: min(max(root.info-widget-y + root.info-widget-drag-offset-y, 12px), root.height - self.height - 12px);
         width: root.desktop ? (root.wide ? 316px : 292px) : parent.width - 24px;
         height: root.phone ? 118px : 132px;
         background: #0b1420aa;
         border-radius: root.phone ? 18px : 20px;
         border-width: 1px;
         border-color: #ffffff22;
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: self.pressed ? grabbing : grab;
+
+            pointer-event(event) => {
+                if event.button != PointerEventButton.left {
+                    return;
+                }
+
+                if event.kind == PointerEventKind.down {
+                    root.info-widget-drag-start-x = parent.x;
+                    root.info-widget-drag-start-y = parent.y;
+                } else if event.kind == PointerEventKind.up {
+                    root.info-widget-x = min(max(parent.x, 12px), root.width - parent.width - 12px);
+                    root.info-widget-y = min(max(parent.y, 12px), root.height - parent.height - 12px);
+                    root.info-widget-drag-offset-x = 0px;
+                    root.info-widget-drag-offset-y = 0px;
+                    root.info-widget-drag-start-x = 0px;
+                    root.info-widget-drag-start-y = 0px;
+                }
+            }
+
+            moved => {
+                if self.pressed {
+                    root.info-widget-drag-offset-x = parent.x + self.mouse-x - self.pressed-x - root.info-widget-drag-start-x;
+                    root.info-widget-drag-offset-y = parent.y + self.mouse-y - self.pressed-y - root.info-widget-drag-start-y;
+                }
+            }
+        }
 
         VerticalLayout {
             padding: root.phone ? 12px : 16px;
@@ -1151,8 +1245,8 @@ export component Desktop inherits Rectangle {
     }
 
     if !root.phone && root.recent-files.length > 0: Rectangle {
-        x: root.desktop ? parent.width - (root.wide ? 346px : 322px) : 12px;
-        y: root.desktop ? 184px : 156px;
+        x: min(max(root.files-widget-x + root.files-widget-drag-offset-x, 12px), root.width - self.width - 12px);
+        y: min(max(root.files-widget-y + root.files-widget-drag-offset-y, 12px), root.height - self.height - 12px);
         width: root.desktop ? (root.wide ? 316px : 292px) : parent.width - 24px;
         height: min(root.desktop ? 174px : 124px, 42px + root.recent-files.length * 42px);
         background: #0b1420aa;
@@ -1160,6 +1254,37 @@ export component Desktop inherits Rectangle {
         border-width: 1px;
         border-color: #ffffff22;
         clip: true;
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: self.pressed ? grabbing : grab;
+
+            pointer-event(event) => {
+                if event.button != PointerEventButton.left {
+                    return;
+                }
+
+                if event.kind == PointerEventKind.down {
+                    root.files-widget-drag-start-x = parent.x;
+                    root.files-widget-drag-start-y = parent.y;
+                } else if event.kind == PointerEventKind.up {
+                    root.files-widget-x = min(max(parent.x, 12px), root.width - parent.width - 12px);
+                    root.files-widget-y = min(max(parent.y, 12px), root.height - parent.height - 12px);
+                    root.files-widget-drag-offset-x = 0px;
+                    root.files-widget-drag-offset-y = 0px;
+                    root.files-widget-drag-start-x = 0px;
+                    root.files-widget-drag-start-y = 0px;
+                }
+            }
+
+            moved => {
+                if self.pressed {
+                    root.files-widget-drag-offset-x = parent.x + self.mouse-x - self.pressed-x - root.files-widget-drag-start-x;
+                    root.files-widget-drag-offset-y = parent.y + self.mouse-y - self.pressed-y - root.files-widget-drag-start-y;
+                }
+            }
+        }
 
         VerticalLayout {
             padding: 12px;

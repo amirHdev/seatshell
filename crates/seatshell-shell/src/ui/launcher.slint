@@ -95,7 +95,7 @@ export component Launcher inherits Rectangle {
                 }
 
                 ShellAction {
-                    label: "Close";
+                    label: "";
                     icon-name: "close";
                     compact: true;
                     clicked => {
@@ -130,7 +130,7 @@ export component Launcher inherits Rectangle {
                     }
 
                     ShellAction {
-                        label: "Close";
+                        label: "";
                         icon-name: "close";
                         compact: true;
                         clicked => {
@@ -199,12 +199,15 @@ export component Launcher inherits Rectangle {
                         height: parent.height;
                         viewport-width: self.width;
 
-                        VerticalLayout {
-                            padding: 14px;
-                            spacing: 14px;
+                            VerticalLayout {
+                                width: parent.width;
+                                padding: 14px;
+                                spacing: 14px;
 
                             Rectangle {
+                                height: 54px;
                                 background: transparent;
+                                vertical-stretch: 0;
 
                                 VerticalLayout {
                                     padding-bottom: 4px;
@@ -227,7 +230,10 @@ export component Launcher inherits Rectangle {
                             }
 
                             if root.featured-apps.length > 0: Rectangle {
+                                height: 28px + root.featured-apps.length * 66px;
+                                width: 268px;
                                 background: transparent;
+                                vertical-stretch: 0;
 
                                 VerticalLayout {
                                     spacing: 8px;
@@ -240,6 +246,7 @@ export component Launcher inherits Rectangle {
                                     }
 
                                     for app in root.featured-apps: AppRow {
+                                        width: 268px;
                                         name: app.name;
                                         detail: app.detail;
                                         icon-text: app.icon_text;
@@ -261,7 +268,10 @@ export component Launcher inherits Rectangle {
                             }
 
                             if root.recent-apps.length > 0: Rectangle {
+                                height: 28px + root.recent-apps.length * 66px;
+                                width: 268px;
                                 background: transparent;
+                                vertical-stretch: 0;
 
                                 VerticalLayout {
                                     spacing: 8px;
@@ -274,6 +284,7 @@ export component Launcher inherits Rectangle {
                                     }
 
                                     for app in root.recent-apps: AppRow {
+                                        width: 268px;
                                         name: app.name;
                                         detail: app.detail;
                                         icon-text: app.icon_text;
@@ -350,13 +361,16 @@ export component Launcher inherits Rectangle {
                         }
 
                         ScrollView {
+                            width: root.wide ? min(root.width - 20px, 1080px) - 342px : root.width - 48px;
                             vertical-stretch: 1;
                             viewport-width: self.width;
 
                             VerticalLayout {
+                                width: root.wide ? min(root.width - 20px, 1080px) - 342px : root.width - 48px;
                                 spacing: 8px;
 
                                 for app in root.apps: AppRow {
+                                    width: root.wide ? min(root.width - 20px, 1080px) - 342px : root.width - 48px;
                                     name: app.name;
                                     detail: app.detail;
                                     icon-text: app.icon_text;
@@ -382,10 +396,12 @@ export component Launcher inherits Rectangle {
             }
 
             if !root.wide: ScrollView {
+                width: min(root.width - 20px, 1080px) - (root.compact ? 24px : 32px);
                 vertical-stretch: 1;
                 viewport-width: self.width;
 
                 VerticalLayout {
+                    width: min(root.width - 20px, 1080px) - (root.compact ? 24px : 32px);
                     spacing: 14px;
 
                     Rectangle {
@@ -413,7 +429,10 @@ export component Launcher inherits Rectangle {
                             }
 
                             if root.featured-apps.length > 0: Rectangle {
+                                height: 24px + root.featured-apps.length * 60px;
+                                width: min(root.width - 20px, 1080px) - (root.compact ? 52px : 60px);
                                 background: transparent;
+                                vertical-stretch: 0;
 
                                 VerticalLayout {
                                     spacing: 8px;
@@ -426,6 +445,7 @@ export component Launcher inherits Rectangle {
                                     }
 
                                     for app in root.featured-apps: AppRow {
+                                        width: min(root.width - 20px, 1080px) - (root.compact ? 52px : 60px);
                                         name: app.name;
                                         detail: app.detail;
                                         icon-text: app.icon_text;
@@ -447,7 +467,10 @@ export component Launcher inherits Rectangle {
                             }
 
                             if root.recent-apps.length > 0: Rectangle {
+                                height: 24px + root.recent-apps.length * 60px;
+                                width: min(root.width - 20px, 1080px) - (root.compact ? 52px : 60px);
                                 background: transparent;
+                                vertical-stretch: 0;
 
                                 VerticalLayout {
                                     spacing: 8px;
@@ -460,6 +483,7 @@ export component Launcher inherits Rectangle {
                                     }
 
                                     for app in root.recent-apps: AppRow {
+                                        width: min(root.width - 20px, 1080px) - (root.compact ? 52px : 60px);
                                         name: app.name;
                                         detail: app.detail;
                                         icon-text: app.icon_text;
@@ -528,6 +552,7 @@ export component Launcher inherits Rectangle {
                             }
 
                             for app in root.apps: AppRow {
+                                width: min(root.width - 20px, 1080px) - (root.compact ? 52px : 60px);
                                 name: app.name;
                                 detail: app.detail;
                                 icon-text: app.icon_text;

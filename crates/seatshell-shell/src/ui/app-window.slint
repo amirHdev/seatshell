@@ -50,6 +50,16 @@ export component AppWindow inherits Window {
     in-out property <bool> show-settings: false;
     in-out property <bool> show-power-menu: false;
     in property <bool> overview-enabled: true;
+    out property <int> desktop-surface-width: root.width / 1px;
+    out property <int> desktop-surface-height: max(0, (root.height - root.panel-height * 1px) / 1px);
+    out property <bool> desktop-phone: root.desktop-surface-width < 560;
+    out property <bool> desktop-wide: root.desktop-surface-width >= 1180;
+    out property <bool> desktop-full-layout: root.desktop-surface-width >= 900;
+    out property <int> desktop-shortcut-lane-width: max(0, root.desktop-surface-width - 24);
+    out property <int> desktop-shortcut-lane-y: 12;
+    out property <int> desktop-shortcut-lane-height: max(0, root.desktop-surface-height - 24);
+    out property <int> desktop-shortcut-max-x: max(0, root.desktop-shortcut-lane-width - 108);
+    out property <int> desktop-shortcut-max-y: max(0, root.desktop-shortcut-lane-height - 112);
 
     callback toggle-launcher();
     callback toggle-overview();

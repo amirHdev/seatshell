@@ -117,6 +117,7 @@ fn main() -> Result<()> {
         &running_counts.borrow(),
         &desktop_shortcut_positions.borrow(),
         &selected_desktop_shortcut_ids.borrow(),
+        desktop_shortcut_bounds_for_ui(&ui),
     ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(&apps, &favorite_ids, &running_counts.borrow(), 5),
@@ -618,6 +619,7 @@ fn main() -> Result<()> {
                         &visual_counts,
                         &desktop_shortcut_positions.borrow(),
                         &selected_desktop_shortcut_ids.borrow(),
+                        desktop_shortcut_bounds_for_ui(&ui),
                     ));
                     ui.set_desktop_windows(desktop_window_model(
                         &recent_model_apps,
@@ -694,6 +696,7 @@ fn main() -> Result<()> {
                 &visual_counts,
                 &launch_desktop_shortcut_positions.borrow(),
                 &launch_selected_desktop_shortcut_ids.borrow(),
+                desktop_shortcut_bounds_for_ui(&ui),
             ));
             ui.set_desktop_windows(desktop_window_model(
                 &launch_apps,
@@ -786,6 +789,7 @@ fn main() -> Result<()> {
                     &visual_counts,
                     &desktop_shortcut_positions.borrow(),
                     &selected_desktop_shortcut_ids.borrow(),
+                    desktop_shortcut_bounds_for_ui(&ui),
                 ));
             }
         });
@@ -867,6 +871,7 @@ fn main() -> Result<()> {
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
                     &selected_desktop_shortcut_ids.borrow(),
+                    desktop_shortcut_bounds_for_ui(&ui),
                 ));
             }
         });
@@ -920,6 +925,7 @@ fn main() -> Result<()> {
                     &running_counts.borrow(),
                     &desktop_shortcut_positions.borrow(),
                     &selected_desktop_shortcut_ids.borrow(),
+                    desktop_shortcut_bounds_for_ui(&ui),
                 ));
             }
         });
@@ -1063,21 +1069,24 @@ fn main() -> Result<()> {
             let shortcut_apps = featured_or_favorite_apps(&all_apps, &favorite_app_ids.borrow(), 6);
             let app_ids = desktop_shortcut_app_ids(&shortcut_apps);
             let current_focus = focused_desktop_shortcut_id.borrow().clone();
-            *focused_desktop_shortcut_id.borrow_mut() = move_desktop_shortcut_focus(
-                &app_ids,
-                &desktop_shortcut_positions.borrow(),
-                current_focus.as_deref(),
-                dx,
-                dy,
-            );
-            selected_desktop_shortcut_ids.borrow_mut().clear();
-            if let Some(app_id) = focused_desktop_shortcut_id.borrow().as_ref() {
-                selected_desktop_shortcut_ids
-                    .borrow_mut()
-                    .insert(app_id.clone());
-            }
-
             if let Some(ui) = weak.upgrade() {
+                let shortcut_bounds = desktop_shortcut_bounds_for_ui(&ui);
+                *focused_desktop_shortcut_id.borrow_mut() = move_desktop_shortcut_focus(
+                    &app_ids,
+                    &desktop_shortcut_positions.borrow(),
+                    current_focus.as_deref(),
+                    dx,
+                    dy,
+                    shortcut_bounds.max_x,
+                    shortcut_bounds.max_y,
+                );
+                selected_desktop_shortcut_ids.borrow_mut().clear();
+                if let Some(app_id) = focused_desktop_shortcut_id.borrow().as_ref() {
+                    selected_desktop_shortcut_ids
+                        .borrow_mut()
+                        .insert(app_id.clone());
+                }
+
                 refresh_desktop_selection_ui(
                     &ui,
                     &all_apps,
@@ -1829,24 +1838,21 @@ fn desktop_shortcut_model(
     running_counts: &HashMap<String, i32>,
     positions: &HashMap<String, DesktopShortcutPosition>,
     selected_ids: &HashSet<String>,
+    bounds: DesktopShortcutBounds,
 ) -> ModelRc<DesktopShortcutEntry> {
     let app_ids = apps.iter().map(|app| app.id.clone()).collect::<Vec<_>>();
-    let positions = effective_desktop_shortcut_positions(
-        &app_ids,
-        positions,
-        DESKTOP_SHORTCUT_MAX_X,
-        DESKTOP_SHORTCUT_MAX_Y,
-    );
+    let positions =
+        effective_desktop_shortcut_positions(&app_ids, positions, bounds.max_x, bounds.max_y);
 
     ModelRc::new(VecModel::from(
         apps.iter()
             .enumerate()
             .map(|(index, app)| {
-                let fallback = default_desktop_shortcut_position(index);
+                let fallback = default_desktop_shortcut_position(index, bounds.max_x, bounds.max_y);
                 let position = snap_desktop_shortcut_position(
                     positions.get(&app.id).copied().unwrap_or(fallback),
-                    DESKTOP_SHORTCUT_MAX_X,
-                    DESKTOP_SHORTCUT_MAX_Y,
+                    bounds.max_x,
+                    bounds.max_y,
                 );
                 DesktopShortcutEntry {
                     id: app.id.clone().into(),
@@ -1876,6 +1882,7 @@ fn refresh_desktop_shortcuts(
         running_counts,
         positions,
         selected_ids,
+        desktop_shortcut_bounds_for_ui(ui),
     ));
 }
 
@@ -1911,6 +1918,7 @@ fn refresh_app_models(
     desktop_shortcut_positions: &HashMap<String, DesktopShortcutPosition>,
     selected_desktop_shortcut_ids: &HashSet<String>,
 ) {
+    let shortcut_bounds = desktop_shortcut_bounds_for_ui(ui);
     ui.set_launcher_apps(launcher_model(
         filtered_apps,
         favorite_ids,
@@ -1940,6 +1948,7 @@ fn refresh_app_models(
         running_counts,
         desktop_shortcut_positions,
         selected_desktop_shortcut_ids,
+        shortcut_bounds,
     ));
     ui.set_panel_apps(launcher_model(
         &taskbar_apps(all_apps, favorite_ids, running_counts, 5),
@@ -2546,6 +2555,12 @@ struct DesktopShortcutPosition {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DesktopShortcutBounds {
+    max_x: i32,
+    max_y: i32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DesktopShortcutRectangle {
     x: i32,
     y: i32,
@@ -2553,14 +2568,14 @@ struct DesktopShortcutRectangle {
     height: i32,
 }
 
-const DESKTOP_SHORTCUT_ORIGIN_X: i32 = 20;
-const DESKTOP_SHORTCUT_ORIGIN_Y: i32 = 20;
+const DESKTOP_SHORTCUT_ORIGIN_X: i32 = 12;
+const DESKTOP_SHORTCUT_ORIGIN_Y: i32 = 12;
 const DESKTOP_SHORTCUT_STEP_X: i32 = 108;
 const DESKTOP_SHORTCUT_STEP_Y: i32 = 120;
 const DESKTOP_SHORTCUT_WIDTH: i32 = 108;
 const DESKTOP_SHORTCUT_HEIGHT: i32 = 112;
-const DESKTOP_SHORTCUT_MAX_X: i32 = 168;
-const DESKTOP_SHORTCUT_MAX_Y: i32 = 512;
+const DESKTOP_SHORTCUT_FALLBACK_MAX_X: i32 = 168;
+const DESKTOP_SHORTCUT_FALLBACK_MAX_Y: i32 = 512;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 struct DesktopShortcutLayoutState {
@@ -2607,21 +2622,44 @@ fn desktop_shortcut_app_ids(apps: &[apps::AppEntry]) -> Vec<String> {
     apps.iter().map(|app| app.id.clone()).collect()
 }
 
+fn desktop_shortcut_bounds_for_ui(ui: &AppWindow) -> DesktopShortcutBounds {
+    let max_x = ui.get_desktop_shortcut_max_x();
+    let max_y = ui.get_desktop_shortcut_max_y();
+    DesktopShortcutBounds {
+        max_x: if max_x == 0 {
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X
+        } else {
+            max_x
+        }
+        .max(0),
+        max_y: if max_y == 0 {
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y
+        } else {
+            max_y
+        }
+        .max(0),
+    }
+}
+
 fn desktop_shortcut_axis_values(origin: i32, step: i32, max: i32) -> Vec<i32> {
     if max < origin {
         return vec![0];
     }
 
-    (origin..=max).step_by(step as usize).collect()
+    let mut values = (origin..=max).step_by(step as usize).collect::<Vec<_>>();
+    if values.last().copied() != Some(max) {
+        values.push(max);
+    }
+    values
 }
 
 fn desktop_shortcut_grid_slots(max_x: i32, max_y: i32) -> Vec<DesktopShortcutPosition> {
-    desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_X, DESKTOP_SHORTCUT_STEP_X, max_x)
+    desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_Y, DESKTOP_SHORTCUT_STEP_Y, max_y)
         .into_iter()
-        .flat_map(|x| {
-            desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_Y, DESKTOP_SHORTCUT_STEP_Y, max_y)
+        .flat_map(|y| {
+            desktop_shortcut_axis_values(DESKTOP_SHORTCUT_ORIGIN_X, DESKTOP_SHORTCUT_STEP_X, max_x)
                 .into_iter()
-                .map(move |y| DesktopShortcutPosition { x, y })
+                .map(move |x| DesktopShortcutPosition { x, y })
         })
         .collect()
 }
@@ -2661,8 +2699,8 @@ fn nearest_free_desktop_shortcut_position(
     slots.sort_by_key(|slot| {
         (
             (slot.x - desired.x).abs() + (slot.y - desired.y).abs(),
-            slot.x,
             slot.y,
+            slot.x,
         )
     });
     slots.into_iter().find(|slot| !occupied.contains(slot))
@@ -2681,7 +2719,7 @@ fn effective_desktop_shortcut_positions(
         let desired = stored_positions
             .get(app_id)
             .copied()
-            .unwrap_or_else(|| default_desktop_shortcut_position(index));
+            .unwrap_or_else(|| default_desktop_shortcut_position(index, max_x, max_y));
         let position = nearest_free_desktop_shortcut_position(desired, &occupied, max_x, max_y)
             .unwrap_or_else(|| snap_desktop_shortcut_position(desired, max_x, max_y));
         occupied.insert(position);
@@ -2851,13 +2889,10 @@ fn move_desktop_shortcut_focus(
     focused_id: Option<&str>,
     dx: i32,
     dy: i32,
+    max_x: i32,
+    max_y: i32,
 ) -> Option<String> {
-    let positions = effective_desktop_shortcut_positions(
-        app_ids,
-        stored_positions,
-        DESKTOP_SHORTCUT_MAX_X,
-        DESKTOP_SHORTCUT_MAX_Y,
-    );
+    let positions = effective_desktop_shortcut_positions(app_ids, stored_positions, max_x, max_y);
     let current_id = focused_id
         .filter(|focused_id| positions.contains_key(*focused_id))
         .or_else(|| app_ids.first().map(String::as_str))?;
@@ -2911,8 +2946,12 @@ fn persist_desktop_shortcut_positions(positions: &HashMap<String, DesktopShortcu
     }
 }
 
-fn default_desktop_shortcut_position(index: usize) -> DesktopShortcutPosition {
-    desktop_shortcut_grid_slots(DESKTOP_SHORTCUT_MAX_X, DESKTOP_SHORTCUT_MAX_Y)
+fn default_desktop_shortcut_position(
+    index: usize,
+    max_x: i32,
+    max_y: i32,
+) -> DesktopShortcutPosition {
+    desktop_shortcut_grid_slots(max_x, max_y)
         .get(index)
         .copied()
         .unwrap_or(DesktopShortcutPosition {
@@ -3752,19 +3791,19 @@ lo:loopback:connected (externally):lo
     fn desktop_shortcut_positions_snap_to_the_bounded_grid() {
         let position = snap_desktop_shortcut_position(
             DesktopShortcutPosition { x: 280, y: -14 },
-            DESKTOP_SHORTCUT_MAX_X,
-            DESKTOP_SHORTCUT_MAX_Y,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
         );
-        assert_eq!(position.x, 128);
-        assert_eq!(position.y, 20);
+        assert_eq!(position.x, 168);
+        assert_eq!(position.y, 12);
 
         let position = snap_desktop_shortcut_position(
             DesktopShortcutPosition { x: 36, y: 84 },
-            DESKTOP_SHORTCUT_MAX_X,
-            DESKTOP_SHORTCUT_MAX_Y,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
         );
-        assert_eq!(position.x, 20);
-        assert_eq!(position.y, 140);
+        assert_eq!(position.x, 12);
+        assert_eq!(position.y, 132);
 
         let position =
             snap_desktop_shortcut_position(DesktopShortcutPosition { x: 36, y: 900 }, 0, 0);
@@ -3783,15 +3822,27 @@ lo:loopback:connected (externally):lo
         let positions = effective_desktop_shortcut_positions(
             &app_ids,
             &stored,
-            DESKTOP_SHORTCUT_MAX_X,
-            DESKTOP_SHORTCUT_MAX_Y,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
         );
-        assert_eq!(positions["one"], DesktopShortcutPosition { x: 20, y: 20 });
-        assert_eq!(positions["two"], DesktopShortcutPosition { x: 128, y: 20 });
+        assert_eq!(positions["one"], DesktopShortcutPosition { x: 12, y: 12 });
+        assert_eq!(positions["two"], DesktopShortcutPosition { x: 120, y: 12 });
         assert_eq!(
             positions["three"],
-            DesktopShortcutPosition { x: 20, y: 140 }
+            DesktopShortcutPosition { x: 12, y: 132 }
         );
+    }
+
+    #[test]
+    fn desktop_shortcut_defaults_fill_rows_before_columns() {
+        let slots = desktop_shortcut_grid_slots(
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
+        );
+
+        assert_eq!(slots[0], DesktopShortcutPosition { x: 12, y: 12 });
+        assert_eq!(slots[1], DesktopShortcutPosition { x: 120, y: 12 });
+        assert_eq!(slots[2], DesktopShortcutPosition { x: 168, y: 12 });
     }
 
     #[test]
@@ -3806,32 +3857,59 @@ lo:loopback:connected (externally):lo
                 width: 110,
                 height: 250,
             },
-            DESKTOP_SHORTCUT_MAX_X,
-            DESKTOP_SHORTCUT_MAX_Y,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
         );
 
-        assert_eq!(selected, HashSet::from(["one".into(), "two".into()]));
+        assert_eq!(selected, HashSet::from(["one".into()]));
     }
 
     #[test]
     fn desktop_shortcut_keyboard_focus_moves_spatially() {
         let app_ids = vec!["one".into(), "two".into(), "three".into()];
         let positions = HashMap::from([
-            ("one".into(), DesktopShortcutPosition { x: 20, y: 20 }),
-            ("two".into(), DesktopShortcutPosition { x: 20, y: 140 }),
-            ("three".into(), DesktopShortcutPosition { x: 128, y: 20 }),
+            ("one".into(), DesktopShortcutPosition { x: 12, y: 12 }),
+            ("two".into(), DesktopShortcutPosition { x: 12, y: 132 }),
+            ("three".into(), DesktopShortcutPosition { x: 120, y: 12 }),
         ]);
 
         assert_eq!(
-            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), 0, 1).as_deref(),
+            move_desktop_shortcut_focus(
+                &app_ids,
+                &positions,
+                Some("one"),
+                0,
+                1,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
+            )
+            .as_deref(),
             Some("two")
         );
         assert_eq!(
-            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), 1, 0).as_deref(),
+            move_desktop_shortcut_focus(
+                &app_ids,
+                &positions,
+                Some("one"),
+                1,
+                0,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
+            )
+            .as_deref(),
             Some("three")
         );
         assert_eq!(
-            move_desktop_shortcut_focus(&app_ids, &positions, Some("one"), -1, 0).as_deref(),
+            move_desktop_shortcut_focus(
+                &app_ids,
+                &positions,
+                Some("one"),
+                -1,
+                0,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
+            )
+            .as_deref(),
             Some("one")
         );
     }
@@ -3840,9 +3918,9 @@ lo:loopback:connected (externally):lo
     fn desktop_shortcut_group_nudge_rejects_collisions() {
         let app_ids = vec!["one".into(), "two".into(), "three".into()];
         let positions = HashMap::from([
-            ("one".into(), DesktopShortcutPosition { x: 20, y: 20 }),
-            ("two".into(), DesktopShortcutPosition { x: 20, y: 140 }),
-            ("three".into(), DesktopShortcutPosition { x: 128, y: 20 }),
+            ("one".into(), DesktopShortcutPosition { x: 12, y: 12 }),
+            ("two".into(), DesktopShortcutPosition { x: 12, y: 132 }),
+            ("three".into(), DesktopShortcutPosition { x: 120, y: 12 }),
         ]);
         let selected = HashSet::from(["one".into(), "two".into()]);
 
@@ -3852,8 +3930,8 @@ lo:loopback:connected (externally):lo
                 &selected,
                 1,
                 0,
-                DESKTOP_SHORTCUT_MAX_X,
-                DESKTOP_SHORTCUT_MAX_Y,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+                DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
                 &positions,
             )
             .is_none()
@@ -3864,13 +3942,13 @@ lo:loopback:connected (externally):lo
             &selected,
             0,
             1,
-            DESKTOP_SHORTCUT_MAX_X,
-            DESKTOP_SHORTCUT_MAX_Y,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_X,
+            DESKTOP_SHORTCUT_FALLBACK_MAX_Y,
             &positions,
         )
         .expect("group can move down");
-        assert_eq!(moved["one"], DesktopShortcutPosition { x: 20, y: 140 });
-        assert_eq!(moved["two"], DesktopShortcutPosition { x: 20, y: 260 });
+        assert_eq!(moved["one"], DesktopShortcutPosition { x: 12, y: 132 });
+        assert_eq!(moved["two"], DesktopShortcutPosition { x: 12, y: 252 });
     }
 
     #[test]
