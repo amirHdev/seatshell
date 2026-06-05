@@ -7,7 +7,7 @@ TIMEOUT="${SEATSHELL_LABWC_TIMEOUT:-10}"
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {
-        echo "SKIP: missing required command: $1"
+        echo "SKIP: missing a required command: $1"
         exit 0
     }
 }
