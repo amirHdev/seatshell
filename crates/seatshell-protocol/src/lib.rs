@@ -5,6 +5,8 @@ pub const USER_AGENT_OBJECT_PATH: &str = "/org/seatshell/UserAgent";
 pub const SHELL_BUS_NAME: &str = "org.seatshell.Shell";
 pub const SHELL_OBJECT_PATH: &str = "/org/seatshell/Shell";
 pub const SETTINGS_BUS_NAME: &str = "org.seatshell.Settings";
+pub const DESKTOP_NOTIFICATIONS_BUS_NAME: &str = "org.freedesktop.Notifications";
+pub const DESKTOP_NOTIFICATIONS_OBJECT_PATH: &str = "/org/freedesktop/Notifications";
 
 pub mod admin {
     pub const INTERFACE: &str = "org.seatshell.Admin";
@@ -43,4 +45,12 @@ pub mod shell {
     pub const TOGGLE_OVERVIEW: &str = "ToggleOverview";
     pub const POST_NOTIFICATION: &str = "PostNotification";
     pub const CLEAR_NOTIFICATIONS: &str = "ClearNotifications";
+}
+
+pub mod desktop_notifications {
+    pub const INTERFACE: &str = "org.freedesktop.Notifications";
+    pub const GET_CAPABILITIES: &str = "GetCapabilities";
+    pub const GET_SERVER_INFORMATION: &str = "GetServerInformation";
+    pub const NOTIFY: &str = "Notify";
+    pub const CLOSE_NOTIFICATION: &str = "CloseNotification";
 }

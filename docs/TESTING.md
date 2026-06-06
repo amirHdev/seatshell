@@ -6,6 +6,10 @@ Start with nested development testing:
 cargo check
 cargo check --workspace
 cargo test --workspace
+scripts/smoke-macos.sh
+scripts/smoke-shell-dbus.sh
+scripts/smoke-windowed-shell.sh
+scripts/validate-display-manager-session.sh --self-test
 cargo run -p seatshell-shell
 cargo run -p seatshell-session -- --dry-run
 cargo run -p seatshell-session -- --dev-dry-run
@@ -20,6 +24,30 @@ PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
 ```
 
 `seatshell-shell` uses a Slint build script, so macOS checks and tests link a host build binary. If Cargo reports that the Xcode license has not been accepted, run `sudo xcodebuild -license` in Terminal before running full workspace checks.
+
+For a macOS-first repository smoke pass, prefer:
+
+```sh
+scripts/smoke-macos.sh
+```
+
+That script runs formatting, workspace checks/tests, admin and session dry runs, a temporary install, installed-layout validation, display-manager session validation, validator self-tests, shell D-Bus smoke coverage, and a windowed screenshot smoke that can be exercised without a Linux login manager.
+
+For direct D-Bus smoke coverage of the running shell services:
+
+```sh
+scripts/smoke-shell-dbus.sh
+```
+
+That script starts `seatshell-shell` on a temporary session bus, waits for `org.seatshell.Shell` and `org.freedesktop.Notifications`, and verifies representative view-toggle and notification methods respond cleanly. When `dbus-daemon` is available it uses a private bus directly; otherwise it falls back to `dbus-run-session`.
+
+For direct screenshot-based UI regression smoke coverage on macOS:
+
+```sh
+scripts/smoke-windowed-shell.sh
+```
+
+That script captures windowed screenshots for desktop, launcher, and system-center surfaces and fails if expected PNG artifacts are not produced.
 
 For a macOS-first UI pass, use the windowed shell before moving to Linux-specific session validation:
 
@@ -42,6 +70,9 @@ The local release gate is:
 cargo fmt --all --check
 cargo check --workspace
 cargo test --workspace
+scripts/validate-display-manager-session.sh --self-test
+scripts/smoke-shell-dbus.sh
+scripts/smoke-windowed-shell.sh
 cargo run -p seatshell-session -- --dry-run
 cargo run -p seatshell-session -- --dev-dry-run
 cargo run -p seatshell-user-agent -- --dry-run
@@ -53,9 +84,13 @@ PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
 PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
 ```
 
-The D-Bus smoke test starts `seatshell-admin-daemon` and `seatshell-user-agent`
-inside `dbus-run-session` and verifies that their registered methods respond.
-It skips when `dbus-run-session` or `gdbus` is unavailable.
+For the service-pair D-Bus smoke that targets the admin daemon and user agent directly:
+
+```sh
+scripts/smoke-dbus.sh
+```
+
+That script starts `seatshell-admin-daemon` and `seatshell-user-agent` inside `dbus-run-session` and verifies that their registered methods respond. It skips when `dbus-run-session` or `gdbus` is unavailable.
 
 Then move to a Linux VM with labwc:
 

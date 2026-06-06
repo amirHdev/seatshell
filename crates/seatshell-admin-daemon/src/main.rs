@@ -1,22 +1,120 @@
 use anyhow::{Context, Result};
 use seatshell_common::{SessionInfo, SessionState, UserInfo};
 use seatshell_config::load_config;
-use seatshell_protocol::{ADMIN_BUS_NAME, ADMIN_OBJECT_PATH, admin};
-use std::fs;
+use seatshell_protocol::{
+    ADMIN_BUS_NAME, ADMIN_OBJECT_PATH, DESKTOP_NOTIFICATIONS_BUS_NAME,
+    DESKTOP_NOTIFICATIONS_OBJECT_PATH, admin, desktop_notifications,
+};
+use std::{
+    collections::HashMap,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::{SystemTime, UNIX_EPOCH},
+};
+use tokio::process::Command;
 use tracing_subscriber::EnvFilter;
 use zbus::{
-    Connection, Proxy, connection::Builder, fdo::DBusProxy, interface, message::Header,
-    zvariant::OwnedObjectPath,
+    Connection, Proxy,
+    connection::Builder,
+    fdo::DBusProxy,
+    interface,
+    message::Header,
+    zvariant::{OwnedObjectPath, OwnedValue},
 };
 
 struct AdminService {
     allowed_group: String,
+    require_reauth: bool,
+    log_actions: bool,
+    allow_logout_user: bool,
+    allow_lock_user: bool,
+    notify_user_on_admin_action: bool,
 }
 
 impl AdminService {
-    fn new(allowed_group: String) -> Self {
-        Self { allowed_group }
+    fn new(
+        allowed_group: String,
+        require_reauth: bool,
+        log_actions: bool,
+        allow_logout_user: bool,
+        allow_lock_user: bool,
+        notify_user_on_admin_action: bool,
+    ) -> Self {
+        Self {
+            allowed_group,
+            require_reauth,
+            log_actions,
+            allow_logout_user,
+            allow_lock_user,
+            notify_user_on_admin_action,
+        }
     }
+
+    fn runtime_policy(&self) -> RuntimePolicy {
+        RuntimePolicy {
+            require_reauth: self.require_reauth,
+            allow_logout_user: self.allow_logout_user,
+            allow_lock_user: self.allow_lock_user,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AdminAction {
+    LockSession,
+    LogoutSession,
+    SendMessage,
+}
+
+impl AdminAction {
+    fn action_id(self) -> &'static str {
+        match self {
+            Self::LockSession => "org.seatshell.admin.lock-session",
+            Self::LogoutSession => "org.seatshell.admin.logout-session",
+            Self::SendMessage => "org.seatshell.admin.send-message",
+        }
+    }
+
+    fn method_name(self) -> &'static str {
+        match self {
+            Self::LockSession => admin::LOCK_SESSION,
+            Self::LogoutSession => admin::LOGOUT_SESSION,
+            Self::SendMessage => admin::SEND_MESSAGE,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CallerIdentity {
+    uid: u32,
+    pid: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AuthorizedAction {
+    caller: CallerIdentity,
+    target: SessionInfo,
+    reauthenticated: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RuntimePolicy {
+    require_reauth: bool,
+    allow_logout_user: bool,
+    allow_lock_user: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AuthorizationPlan {
+    reauthenticate: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AuthorizationFailure {
+    Disabled,
+    AdminRequired,
 }
 
 #[interface(name = "org.seatshell.Admin")]
@@ -67,6 +165,98 @@ impl AdminService {
     async fn get_policy_group(&self) -> String {
         self.allowed_group.clone()
     }
+
+    async fn lock_session(
+        &self,
+        session_id: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let authorized = self
+            .authorize_action(connection, &header, AdminAction::LockSession, session_id)
+            .await?;
+        lock_session_with_logind(session_id)
+            .await
+            .map_err(to_fdo_failed("failed to lock session"))?;
+        self.audit_action(
+            AdminAction::LockSession,
+            &authorized,
+            "allowed",
+            session_id,
+            None,
+        );
+        if self.notify_user_on_admin_action {
+            let _ = post_desktop_notification(
+                "SeatShell",
+                &format!("Locked session {}", authorized.target.username),
+                &format!("Session {} was locked.", authorized.target.id),
+            )
+            .await;
+        }
+        Ok(())
+    }
+
+    async fn logout_session(
+        &self,
+        session_id: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let authorized = self
+            .authorize_action(connection, &header, AdminAction::LogoutSession, session_id)
+            .await?;
+        logout_session_with_logind(session_id)
+            .await
+            .map_err(to_fdo_failed("failed to log out session"))?;
+        self.audit_action(
+            AdminAction::LogoutSession,
+            &authorized,
+            "allowed",
+            session_id,
+            None,
+        );
+        Ok(())
+    }
+
+    async fn send_message(
+        &self,
+        session_id: &str,
+        message: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let message = message.trim();
+        if message.is_empty() {
+            return Err(zbus::fdo::Error::InvalidArgs(
+                "message cannot be empty".into(),
+            ));
+        }
+
+        let authorized = self
+            .authorize_action(connection, &header, AdminAction::SendMessage, session_id)
+            .await?;
+        send_message_to_session(&authorized.target, message)
+            .await
+            .map_err(to_fdo_failed("failed to deliver session message"))?;
+        self.audit_action(
+            AdminAction::SendMessage,
+            &authorized,
+            "allowed",
+            session_id,
+            Some(message),
+        );
+        Ok(())
+    }
+
+    async fn get_session_state(
+        &self,
+        session_id: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<(String, bool)> {
+        authorize_same_uid(connection, &header).await?;
+        session_state_lookup(discover_sessions().await.as_slice(), session_id)
+    }
 }
 
 #[tokio::main]
@@ -87,12 +277,12 @@ async fn main() -> Result<()> {
         println!("  - {}", admin::LIST_USERS);
         println!("  - {}", admin::LIST_SESSIONS);
         println!("  - {}", admin::GET_POLICY_GROUP);
-        println!("planned privileged methods:");
-        println!("  - {}", admin::OPEN_APP_AS_USER);
         println!("  - {}", admin::LOCK_SESSION);
         println!("  - {}", admin::LOGOUT_SESSION);
         println!("  - {}", admin::SEND_MESSAGE);
         println!("  - {}", admin::GET_SESSION_STATE);
+        println!("planned privileged methods:");
+        println!("  - {}", admin::OPEN_APP_AS_USER);
         println!("  - {}", admin::REQUEST_PREVIEW);
         println!(
             "detected users: {}",
@@ -106,7 +296,14 @@ async fn main() -> Result<()> {
         .name(ADMIN_BUS_NAME)?
         .serve_at(
             ADMIN_OBJECT_PATH,
-            AdminService::new(config.admin.allowed_group.clone()),
+            AdminService::new(
+                config.admin.allowed_group.clone(),
+                config.admin.require_reauth,
+                config.admin.log_actions,
+                config.control.allow_logout_user,
+                config.control.allow_lock_user,
+                config.privacy.notify_user_on_admin_action,
+            ),
         )?
         .build()
         .await?;
@@ -120,6 +317,85 @@ async fn main() -> Result<()> {
 
     tokio::signal::ctrl_c().await?;
     Ok(())
+}
+
+impl AdminService {
+    async fn authorize_action(
+        &self,
+        connection: &Connection,
+        header: &Header<'_>,
+        action: AdminAction,
+        session_id: &str,
+    ) -> zbus::fdo::Result<AuthorizedAction> {
+        self.ensure_action_enabled(action)?;
+        let caller = caller_identity(connection, header).await?;
+        let target = find_session_by_id(discover_sessions().await.as_slice(), session_id)?.clone();
+
+        let current = current_user(&self.allowed_group);
+        let plan = authorization_plan(
+            self.runtime_policy(),
+            action,
+            caller.uid,
+            target.uid,
+            current.is_admin,
+        )
+        .map_err(|failure| match failure {
+            AuthorizationFailure::Disabled => zbus::fdo::Error::AccessDenied(format!(
+                "{} is disabled by SeatShell policy",
+                action.method_name()
+            )),
+            AuthorizationFailure::AdminRequired => zbus::fdo::Error::AccessDenied(format!(
+                "user {} is not allowed to control session {}",
+                current.username, target.id
+            )),
+        })?;
+
+        if plan.reauthenticate {
+            require_polkit_reauth(&caller, action)
+                .await
+                .map_err(to_fdo_denied("caller re-authentication failed"))?;
+        }
+
+        Ok(AuthorizedAction {
+            caller,
+            target,
+            reauthenticated: plan.reauthenticate,
+        })
+    }
+
+    fn ensure_action_enabled(&self, action: AdminAction) -> zbus::fdo::Result<()> {
+        if action_enabled(self.runtime_policy(), action) {
+            Ok(())
+        } else {
+            Err(zbus::fdo::Error::AccessDenied(format!(
+                "{} is disabled by SeatShell policy",
+                action.method_name()
+            )))
+        }
+    }
+
+    fn audit_action(
+        &self,
+        action: AdminAction,
+        authorized: &AuthorizedAction,
+        outcome: &str,
+        session_id: &str,
+        message: Option<&str>,
+    ) {
+        if !self.log_actions {
+            return;
+        }
+
+        if let Err(error) = append_audit_entry(
+            action,
+            authorized,
+            outcome,
+            session_id,
+            message.unwrap_or_default(),
+        ) {
+            tracing::warn!(%error, "failed to write SeatShell admin audit entry");
+        }
+    }
 }
 
 fn list_users(admin_group: &str) -> Vec<UserInfo> {
@@ -290,6 +566,24 @@ fn local_sessions() -> Vec<SessionInfo> {
     }]
 }
 
+fn find_session_by_id<'a>(
+    sessions: &'a [SessionInfo],
+    session_id: &str,
+) -> zbus::fdo::Result<&'a SessionInfo> {
+    sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .ok_or_else(|| zbus::fdo::Error::Failed(format!("session {session_id} was not found")))
+}
+
+fn session_state_lookup(
+    sessions: &[SessionInfo],
+    session_id: &str,
+) -> zbus::fdo::Result<(String, bool)> {
+    let session = find_session_by_id(sessions, session_id)?;
+    Ok((session_state_name(&session.state).into(), session.locked))
+}
+
 fn session_state_from_logind(state: &str) -> SessionState {
     match state {
         "active" => SessionState::Active,
@@ -311,6 +605,13 @@ fn session_state_name(state: &SessionState) -> &'static str {
 }
 
 async fn authorize_same_uid(connection: &Connection, header: &Header<'_>) -> zbus::fdo::Result<()> {
+    caller_identity(connection, header).await.map(|_| ())
+}
+
+async fn caller_identity(
+    connection: &Connection,
+    header: &Header<'_>,
+) -> zbus::fdo::Result<CallerIdentity> {
     let sender = header
         .sender()
         .ok_or_else(|| zbus::fdo::Error::AccessDenied("missing D-Bus sender".into()))?;
@@ -323,16 +624,277 @@ async fn authorize_same_uid(connection: &Connection, header: &Header<'_>) -> zbu
         .map_err(|err| {
             zbus::fdo::Error::AccessDenied(format!("could not verify caller identity: {err}"))
         })?;
+    let caller_pid = proxy
+        .get_connection_unix_process_id(sender.to_owned().into())
+        .await
+        .map_err(|err| {
+            zbus::fdo::Error::AccessDenied(format!("could not verify caller process: {err}"))
+        })?;
     let service_uid = current_uid();
 
     if caller_uid == service_uid {
-        Ok(())
+        Ok(CallerIdentity {
+            uid: caller_uid,
+            pid: caller_pid,
+        })
     } else {
-        tracing::warn!(caller_uid, service_uid, "rejected D-Bus caller");
+        tracing::warn!(caller_uid, caller_pid, service_uid, "rejected D-Bus caller");
         Err(zbus::fdo::Error::AccessDenied(format!(
             "caller uid {caller_uid} is not allowed to access SeatShell admin uid {service_uid}"
         )))
     }
+}
+
+async fn require_polkit_reauth(caller: &CallerIdentity, action: AdminAction) -> Result<()> {
+    let status = Command::new("pkcheck")
+        .args([
+            "--action-id",
+            action.action_id(),
+            "--process",
+            &caller.pid.to_string(),
+            "--allow-user-interaction",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .context("failed to run pkcheck")?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("pkcheck exited with {status}");
+    }
+}
+
+async fn lock_session_with_logind(session_id: &str) -> Result<()> {
+    let status = Command::new("loginctl")
+        .args(["lock-session", session_id])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .context("failed to run loginctl lock-session")?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("loginctl lock-session exited with {status}");
+    }
+}
+
+async fn logout_session_with_logind(session_id: &str) -> Result<()> {
+    let status = Command::new("loginctl")
+        .args(["terminate-session", session_id])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .context("failed to run loginctl terminate-session")?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("loginctl terminate-session exited with {status}");
+    }
+}
+
+async fn send_message_to_session(target: &SessionInfo, message: &str) -> Result<()> {
+    if !message_delivery_allowed(target.uid, current_uid(), &target.id, &current_session_id()) {
+        anyhow::bail!("message delivery is currently limited to the current user's active session");
+    }
+
+    post_desktop_notification("SeatShell", "SeatShell admin message", message).await
+}
+
+async fn post_desktop_notification(app_name: &str, summary: &str, body: &str) -> Result<()> {
+    let connection = Connection::session()
+        .await
+        .context("failed to connect to the session bus for notifications")?;
+    let proxy = Proxy::new(
+        &connection,
+        DESKTOP_NOTIFICATIONS_BUS_NAME,
+        DESKTOP_NOTIFICATIONS_OBJECT_PATH,
+        desktop_notifications::INTERFACE,
+    )
+    .await
+    .context("failed to create desktop notification proxy")?;
+
+    proxy
+        .call_method(
+            desktop_notifications::NOTIFY,
+            &(
+                app_name,
+                0_u32,
+                "",
+                summary,
+                body,
+                Vec::<String>::new(),
+                HashMap::<String, OwnedValue>::new(),
+                10_000_i32,
+            ),
+        )
+        .await
+        .context("desktop notification notify call failed")?;
+
+    Ok(())
+}
+
+fn current_session_id() -> String {
+    std::env::var("XDG_SESSION_ID")
+        .or_else(|_| std::env::var("TERM_SESSION_ID"))
+        .unwrap_or_else(|_| format!("local-{}", current_uid()))
+}
+
+fn append_audit_entry(
+    action: AdminAction,
+    authorized: &AuthorizedAction,
+    outcome: &str,
+    session_id: &str,
+    message: &str,
+) -> Result<()> {
+    let path = admin_audit_log_path();
+    append_audit_entry_to_path(&path, action, authorized, outcome, session_id, message)
+}
+
+fn append_audit_entry_to_path(
+    path: &Path,
+    action: AdminAction,
+    authorized: &AuthorizedAction,
+    outcome: &str,
+    session_id: &str,
+    message: &str,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create admin audit dir {}", parent.display()))?;
+    }
+
+    let line = audit_log_line(action, authorized, outcome, session_id, message);
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("failed to open admin audit log {}", path.display()))?;
+    writeln!(file, "{line}")
+        .with_context(|| format!("failed to write admin audit log {}", path.display()))?;
+    Ok(())
+}
+
+fn audit_log_line(
+    action: AdminAction,
+    authorized: &AuthorizedAction,
+    outcome: &str,
+    session_id: &str,
+    message: &str,
+) -> String {
+    let timestamp = audit_timestamp();
+    format!(
+        "ts={timestamp} action={} outcome={outcome} caller_uid={} caller_pid={} target_uid={} target_session={} reauth={} message={}",
+        action.method_name(),
+        authorized.caller.uid,
+        authorized.caller.pid,
+        authorized.target.uid,
+        session_id,
+        authorized.reauthenticated,
+        sanitize_audit_field(message),
+    )
+}
+
+fn admin_audit_log_path() -> PathBuf {
+    if let Some(log_dir) = std::env::var_os("SEATSHELL_LOG_DIR") {
+        return PathBuf::from(log_dir).join("admin-actions.log");
+    }
+
+    if let Some(state_dir) = std::env::var_os("SEATSHELL_STATE_DIR") {
+        return PathBuf::from(state_dir)
+            .join("logs")
+            .join("admin-actions.log");
+    }
+
+    default_state_dir().join("logs").join("admin-actions.log")
+}
+
+fn default_state_dir() -> PathBuf {
+    if let Some(state_home) = std::env::var_os("XDG_STATE_HOME") {
+        return PathBuf::from(state_home).join("seatshell");
+    }
+
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".local")
+        .join("state")
+        .join("seatshell")
+}
+
+fn audit_timestamp() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
+}
+
+fn sanitize_audit_field(value: &str) -> String {
+    value.replace('\n', "\\n").replace('\r', "")
+}
+
+fn action_enabled(policy: RuntimePolicy, action: AdminAction) -> bool {
+    match action {
+        AdminAction::LockSession => policy.allow_lock_user,
+        AdminAction::LogoutSession => policy.allow_logout_user,
+        AdminAction::SendMessage => true,
+    }
+}
+
+fn authorization_plan(
+    policy: RuntimePolicy,
+    action: AdminAction,
+    caller_uid: u32,
+    target_uid: u32,
+    current_user_is_admin: bool,
+) -> std::result::Result<AuthorizationPlan, AuthorizationFailure> {
+    if !action_enabled(policy, action) {
+        return Err(AuthorizationFailure::Disabled);
+    }
+
+    if target_uid == caller_uid {
+        return Ok(AuthorizationPlan {
+            reauthenticate: false,
+        });
+    }
+
+    if !current_user_is_admin {
+        return Err(AuthorizationFailure::AdminRequired);
+    }
+
+    Ok(AuthorizationPlan {
+        reauthenticate: policy.require_reauth,
+    })
+}
+
+fn message_delivery_allowed(
+    target_uid: u32,
+    current_uid: u32,
+    target_session_id: &str,
+    current_session_id: &str,
+) -> bool {
+    target_uid == current_uid && target_session_id == current_session_id
+}
+
+fn to_fdo_failed(
+    prefix: &'static str,
+) -> impl Fn(anyhow::Error) -> zbus::fdo::Error + Copy + 'static {
+    move |error| zbus::fdo::Error::Failed(format!("{prefix}: {error}"))
+}
+
+fn to_fdo_denied(
+    prefix: &'static str,
+) -> impl Fn(anyhow::Error) -> zbus::fdo::Error + Copy + 'static {
+    move |error| zbus::fdo::Error::AccessDenied(format!("{prefix}: {error}"))
 }
 
 fn current_uid() -> u32 {
@@ -342,6 +904,54 @@ fn current_uid() -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn sample_policy() -> RuntimePolicy {
+        RuntimePolicy {
+            require_reauth: true,
+            allow_logout_user: true,
+            allow_lock_user: true,
+        }
+    }
+
+    fn sample_authorized_action() -> AuthorizedAction {
+        AuthorizedAction {
+            caller: CallerIdentity {
+                uid: 1000,
+                pid: 4242,
+            },
+            target: SessionInfo {
+                id: "seat-1".into(),
+                uid: 1001,
+                username: "alice".into(),
+                seat: "seat0".into(),
+                state: SessionState::Active,
+                locked: false,
+            },
+            reauthenticated: true,
+        }
+    }
+
+    fn sample_sessions() -> Vec<SessionInfo> {
+        vec![
+            SessionInfo {
+                id: "seat-1".into(),
+                uid: 1000,
+                username: "alice".into(),
+                seat: "seat0".into(),
+                state: SessionState::Active,
+                locked: false,
+            },
+            SessionInfo {
+                id: "seat-2".into(),
+                uid: 1001,
+                username: "bob".into(),
+                seat: "seat1".into(),
+                state: SessionState::Unknown,
+                locked: true,
+            },
+        ]
+    }
 
     #[test]
     fn display_name_uses_first_gecos_field() {
@@ -381,5 +991,142 @@ mod tests {
             SessionState::Inactive
         );
         assert_eq!(session_state_from_logind("weird"), SessionState::Unknown);
+    }
+
+    #[test]
+    fn admin_action_method_names_match_protocol_strings() {
+        assert_eq!(AdminAction::LockSession.method_name(), admin::LOCK_SESSION);
+        assert_eq!(
+            AdminAction::LogoutSession.method_name(),
+            admin::LOGOUT_SESSION
+        );
+        assert_eq!(AdminAction::SendMessage.method_name(), admin::SEND_MESSAGE);
+    }
+
+    #[test]
+    fn sanitize_audit_field_flattens_newlines() {
+        assert_eq!(
+            sanitize_audit_field("hello\nworld\r\nagain"),
+            "hello\\nworld\\nagain"
+        );
+    }
+
+    #[test]
+    fn authorization_plan_allows_same_user_without_reauth() {
+        let plan = authorization_plan(sample_policy(), AdminAction::LockSession, 1000, 1000, false)
+            .expect("same-user action should be allowed");
+
+        assert!(!plan.reauthenticate);
+    }
+
+    #[test]
+    fn authorization_plan_requires_admin_for_cross_user_action() {
+        let failure =
+            authorization_plan(sample_policy(), AdminAction::LockSession, 1000, 1001, false)
+                .expect_err("cross-user non-admin action should be denied");
+
+        assert_eq!(failure, AuthorizationFailure::AdminRequired);
+    }
+
+    #[test]
+    fn authorization_plan_requires_reauth_for_cross_user_admin_action() {
+        let plan = authorization_plan(
+            sample_policy(),
+            AdminAction::LogoutSession,
+            1000,
+            1001,
+            true,
+        )
+        .expect("cross-user admin action should be allowed");
+
+        assert!(plan.reauthenticate);
+    }
+
+    #[test]
+    fn authorization_plan_honors_disabled_policy() {
+        let failure = authorization_plan(
+            RuntimePolicy {
+                require_reauth: true,
+                allow_logout_user: false,
+                allow_lock_user: true,
+            },
+            AdminAction::LogoutSession,
+            1000,
+            1000,
+            true,
+        )
+        .expect_err("disabled action should be denied");
+
+        assert_eq!(failure, AuthorizationFailure::Disabled);
+    }
+
+    #[test]
+    fn message_delivery_allowed_only_for_current_matching_session() {
+        assert!(message_delivery_allowed(1000, 1000, "seat-1", "seat-1"));
+        assert!(!message_delivery_allowed(1001, 1000, "seat-1", "seat-1"));
+        assert!(!message_delivery_allowed(1000, 1000, "seat-2", "seat-1"));
+    }
+
+    #[test]
+    fn session_state_lookup_returns_state_and_locked_flag() {
+        let state = session_state_lookup(&sample_sessions(), "seat-2").expect("lookup should work");
+        assert_eq!(state, ("unknown".into(), true));
+    }
+
+    #[test]
+    fn session_state_lookup_rejects_missing_session() {
+        let error = session_state_lookup(&sample_sessions(), "missing")
+            .expect_err("missing session should fail");
+        assert!(error.to_string().contains("session missing was not found"));
+    }
+
+    #[test]
+    fn find_session_by_id_returns_matching_session() {
+        let sessions = sample_sessions();
+        let session = find_session_by_id(&sessions, "seat-1").expect("find session");
+        assert_eq!(session.username, "alice");
+    }
+
+    #[test]
+    fn append_audit_entry_to_path_writes_sanitized_line() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("seatshell-audit-{unique}.log"));
+        let authorized = sample_authorized_action();
+
+        append_audit_entry_to_path(
+            &path,
+            AdminAction::SendMessage,
+            &authorized,
+            "allowed",
+            "seat-1",
+            "hello\nworld",
+        )
+        .expect("audit entry should be written");
+
+        let content = fs::read_to_string(&path).expect("read audit file");
+        assert!(content.contains(&format!(
+            "action={}",
+            AdminAction::SendMessage.method_name()
+        )));
+        assert!(content.contains("caller_uid=1000"));
+        assert!(content.contains("target_uid=1001"));
+        assert!(content.contains("message=hello\\nworld"));
+
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn fdo_failed_wrapper_preserves_prefix_and_error_text() {
+        let error = to_fdo_failed("lock failed")(anyhow::anyhow!("boom"));
+        assert!(error.to_string().contains("lock failed: boom"));
+    }
+
+    #[test]
+    fn fdo_denied_wrapper_preserves_prefix_and_error_text() {
+        let error = to_fdo_denied("reauth failed")(anyhow::anyhow!("denied"));
+        assert!(error.to_string().contains("reauth failed: denied"));
     }
 }

@@ -7,7 +7,7 @@
 - Shell renders a Slint desktop surface, panel, launcher, and SingleSeat Overview.
 - Session launcher starts labwc, the admin daemon, the user agent, and the shell; it can show production and development process plans with `--dry-run` and `--dev-dry-run`.
 - User agent registers the current user's D-Bus service and exposes launch/session-info methods.
-- Admin daemon registers the admin D-Bus service and exposes read-only user/session discovery.
+- Admin daemon registers the admin D-Bus service, exposes user/session discovery, and now includes guarded `LockSession`, `LogoutSession`, `SendMessage`, and `GetSessionState` actions with audit logging.
 - Launcher apps are provided by Rust through a Slint model.
 - Launcher parses development and system `.desktop` files.
 - Desktop and launcher app rows spawn the parsed command argv.
@@ -19,8 +19,8 @@
 
 ## Next
 
-1. Add privileged admin mutations for lock, logout, and open-app-as-user with Polkit-grade caller authorization.
+1. Validate display-manager startup, shell notifications, and admin session actions end to end on Linux.
 2. Add Linux VM integration tests under `dbus-run-session labwc`.
 3. Replace Slint top-level windows with native compositor shell surfaces.
-4. Expand logind session-state handling and validate it in a Linux VM.
+4. Expand cross-user delivery, previews, and consent-aware overview behavior.
 5. Add distribution packaging and release artifacts.

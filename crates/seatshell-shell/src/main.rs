@@ -4,7 +4,9 @@ use seatshell_common::config::PanelPosition;
 use seatshell_config::load_config;
 use seatshell_notifications::{Notification, NotificationUrgency};
 use seatshell_protocol::{
-    ADMIN_BUS_NAME, ADMIN_OBJECT_PATH, SHELL_BUS_NAME, SHELL_OBJECT_PATH, admin, shell,
+    ADMIN_BUS_NAME, ADMIN_OBJECT_PATH, DESKTOP_NOTIFICATIONS_BUS_NAME,
+    DESKTOP_NOTIFICATIONS_OBJECT_PATH, SHELL_BUS_NAME, SHELL_OBJECT_PATH, admin,
+    desktop_notifications, shell,
 };
 use slint::{Image, ModelRc, Timer, TimerMode, VecModel};
 use std::{
@@ -22,7 +24,7 @@ use std::{
     time::Duration,
 };
 use tracing_subscriber::EnvFilter;
-use zbus::{Proxy, connection::Builder, interface};
+use zbus::{Proxy, connection::Builder, interface, zvariant::OwnedValue};
 
 mod apps;
 
@@ -372,12 +374,48 @@ fn main() -> Result<()> {
 
     {
         let notifications = Arc::clone(&notifications);
+        let weak = ui.as_weak();
         ui.on_request_shell_action(move |action| {
-            notifications.push(Notification {
-                title: format!("{} is not connected yet", action),
-                body: "This scaffold is ready for the privileged Linux session service.".into(),
-                urgency: NotificationUrgency::Normal,
-            });
+            let action_name = action.to_string();
+            let result = match action_name.as_str() {
+                "lock" => request_admin_session_action(admin::LOCK_SESSION, &current_session_id()),
+                "sign out" => {
+                    request_admin_session_action(admin::LOGOUT_SESSION, &current_session_id())
+                }
+                _ => Err(anyhow::anyhow!(
+                    "{action_name} still depends on a system power service"
+                )),
+            };
+
+            match result {
+                Ok(()) => {
+                    notifications.push(Notification {
+                        title: format!("{action_name} requested"),
+                        body: "SeatShell handed the action to the admin session service.".into(),
+                        urgency: NotificationUrgency::Normal,
+                    });
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_show_power_menu(false);
+                    }
+                }
+                Err(error) if matches!(action_name.as_str(), "restart" | "power off") => {
+                    tracing::info!(%error, action = %action_name, "shell action remains scaffolded");
+                    notifications.push(Notification {
+                        title: format!("{action_name} is not connected yet"),
+                        body: "Restart and power off still need a system power integration path."
+                            .into(),
+                        urgency: NotificationUrgency::Normal,
+                    });
+                }
+                Err(error) => {
+                    tracing::warn!(%error, action = %action_name, "shell action failed");
+                    notifications.push(Notification {
+                        title: format!("{action_name} failed"),
+                        body: error.to_string(),
+                        urgency: NotificationUrgency::Critical,
+                    });
+                }
+            }
         });
     }
 
@@ -1311,6 +1349,10 @@ struct ShellService {
     notifications: Arc<NotificationStore>,
 }
 
+struct DesktopNotificationDaemon {
+    notifications: Arc<NotificationStore>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct StoredNotification {
     id: u32,
@@ -1339,12 +1381,27 @@ struct NotificationStore {
 
 impl NotificationStore {
     fn push(&self, notification: Notification) -> u32 {
+        self.push_or_replace(None, notification)
+    }
+
+    fn push_or_replace(&self, replaces_id: Option<u32>, notification: Notification) -> u32 {
         let id = self
             .next_id
             .fetch_add(1, Ordering::SeqCst)
             .saturating_add(1);
         let mut items = self.items.lock().expect("notification store poisoned");
-        items.insert(0, StoredNotification::from_payload(id, notification));
+        let id = if let Some(replaces_id) = replaces_id {
+            if let Some(existing) = items.iter_mut().find(|item| item.id == replaces_id) {
+                *existing = StoredNotification::from_payload(replaces_id, notification);
+                replaces_id
+            } else {
+                items.insert(0, StoredNotification::from_payload(id, notification));
+                id
+            }
+        } else {
+            items.insert(0, StoredNotification::from_payload(id, notification));
+            id
+        };
         items.truncate(32);
         self.revision.fetch_add(1, Ordering::SeqCst);
         id
@@ -1440,10 +1497,48 @@ impl ShellService {
     }
 }
 
+#[interface(name = "org.freedesktop.Notifications")]
+impl DesktopNotificationDaemon {
+    async fn get_capabilities(&self) -> Vec<String> {
+        vec!["body".into(), "body-markup".into(), "persistence".into()]
+    }
+
+    async fn get_server_information(&self) -> (String, String, String, String) {
+        (
+            "SeatShell".into(),
+            "SeatShell".into(),
+            env!("CARGO_PKG_VERSION").into(),
+            "1.2".into(),
+        )
+    }
+
+    async fn notify(
+        &self,
+        app_name: &str,
+        replaces_id: u32,
+        _app_icon: &str,
+        summary: &str,
+        body: &str,
+        _actions: Vec<String>,
+        hints: HashMap<String, OwnedValue>,
+        _expire_timeout: i32,
+    ) -> u32 {
+        let notification = notification_from_desktop_request(app_name, summary, body, &hints);
+        let replaces_id = (replaces_id > 0).then_some(replaces_id);
+        self.notifications
+            .push_or_replace(replaces_id, notification)
+    }
+
+    async fn close_notification(&self, id: u32) {
+        self.notifications.dismiss(id);
+    }
+}
+
 fn spawn_shell_service(
     commands: Arc<AtomicU8>,
     notifications: Arc<NotificationStore>,
 ) -> Result<()> {
+    let shell_notifications = Arc::clone(&notifications);
     std::thread::spawn(move || {
         let runtime = match tokio::runtime::Builder::new_current_thread()
             .enable_io()
@@ -1460,7 +1555,7 @@ fn spawn_shell_service(
         runtime.block_on(async move {
             let service = ShellService {
                 commands,
-                notifications,
+                notifications: shell_notifications,
             };
             let connection = Builder::session()
                 .and_then(|builder| builder.name(SHELL_BUS_NAME))
@@ -1487,7 +1582,102 @@ fn spawn_shell_service(
         });
     });
 
+    spawn_desktop_notification_service(notifications);
+
     Ok(())
+}
+
+fn spawn_desktop_notification_service(notifications: Arc<NotificationStore>) {
+    std::thread::spawn(move || {
+        let runtime = match tokio::runtime::Builder::new_current_thread()
+            .enable_io()
+            .enable_time()
+            .build()
+        {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                tracing::warn!(%error, "failed to build notification D-Bus runtime");
+                return;
+            }
+        };
+
+        runtime.block_on(async move {
+            let service = DesktopNotificationDaemon { notifications };
+            let connection = Builder::session()
+                .and_then(|builder| builder.name(DESKTOP_NOTIFICATIONS_BUS_NAME))
+                .and_then(|builder| builder.serve_at(DESKTOP_NOTIFICATIONS_OBJECT_PATH, service));
+
+            match connection {
+                Ok(builder) => match builder.build().await {
+                    Ok(_connection) => {
+                        tracing::info!(
+                            bus_name = DESKTOP_NOTIFICATIONS_BUS_NAME,
+                            object_path = DESKTOP_NOTIFICATIONS_OBJECT_PATH,
+                            interface = desktop_notifications::INTERFACE,
+                            "SeatShell desktop notification service registered"
+                        );
+                        std::future::pending::<()>().await;
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "failed to build desktop notification service");
+                    }
+                },
+                Err(error) => {
+                    tracing::warn!(%error, "failed to configure desktop notification service");
+                }
+            }
+        });
+    });
+}
+
+fn notification_from_desktop_request(
+    app_name: &str,
+    summary: &str,
+    body: &str,
+    hints: &HashMap<String, OwnedValue>,
+) -> Notification {
+    let app_name = app_name.trim();
+    let summary = summary.trim();
+    let body = body.trim();
+    let title = if !summary.is_empty() {
+        summary.to_string()
+    } else if !app_name.is_empty() {
+        app_name.to_string()
+    } else {
+        "Notification".into()
+    };
+    let body = if !body.is_empty() {
+        body.to_string()
+    } else if !app_name.is_empty() && app_name != title {
+        app_name.to_string()
+    } else {
+        String::new()
+    };
+
+    Notification {
+        title,
+        body,
+        urgency: notification_urgency_from_hints(hints),
+    }
+}
+
+fn notification_urgency_from_hints(hints: &HashMap<String, OwnedValue>) -> NotificationUrgency {
+    let Some(value) = hints.get("urgency") else {
+        return NotificationUrgency::Normal;
+    };
+
+    match owned_value_to_u8(value).unwrap_or(1) {
+        0 => NotificationUrgency::Low,
+        2 => NotificationUrgency::Critical,
+        _ => NotificationUrgency::Normal,
+    }
+}
+
+fn owned_value_to_u8(value: &OwnedValue) -> Option<u8> {
+    value.clone().try_into().ok().or_else(|| {
+        let signed = i16::try_from(value.clone()).ok()?;
+        u8::try_from(signed).ok()
+    })
 }
 
 fn requested_view(args: &[String]) -> ShellView {
@@ -2080,6 +2270,33 @@ fn activate_session(action: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn request_admin_session_action(method: &str, session_id: &str) -> Result<()> {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .enable_time()
+        .build()?;
+
+    runtime.block_on(async move {
+        let connection = zbus::Connection::session().await?;
+        let proxy = Proxy::new(
+            &connection,
+            ADMIN_BUS_NAME,
+            ADMIN_OBJECT_PATH,
+            admin::INTERFACE,
+        )
+        .await?;
+
+        proxy.call_method(method, &(session_id)).await?;
+        Ok(())
+    })
+}
+
+fn current_session_id() -> String {
+    std::env::var("XDG_SESSION_ID")
+        .or_else(|_| std::env::var("TERM_SESSION_ID"))
+        .unwrap_or_else(|_| "local".into())
 }
 
 fn network_status_text() -> String {
@@ -3670,6 +3887,233 @@ mod tests {
 
         store.clear();
         assert!(store.snapshot().is_empty());
+    }
+
+    #[test]
+    fn notification_store_replaces_existing_external_notification() {
+        let store = NotificationStore::default();
+        let id = store.push(Notification {
+            title: "one".into(),
+            body: "body".into(),
+            urgency: NotificationUrgency::Normal,
+        });
+
+        let replaced = store.push_or_replace(
+            Some(id),
+            Notification {
+                title: "updated".into(),
+                body: "new body".into(),
+                urgency: NotificationUrgency::Critical,
+            },
+        );
+
+        assert_eq!(replaced, id);
+        let snapshot = store.snapshot();
+        assert_eq!(snapshot.len(), 1);
+        assert_eq!(snapshot[0].title, "updated");
+        assert_eq!(snapshot[0].urgency, NotificationUrgency::Critical);
+    }
+
+    #[test]
+    fn notification_store_revision_changes_only_when_contents_change() {
+        let store = NotificationStore::default();
+        assert_eq!(store.revision(), 0);
+
+        let id = store.push(Notification {
+            title: "one".into(),
+            body: String::new(),
+            urgency: NotificationUrgency::Normal,
+        });
+        assert_eq!(store.revision(), 1);
+
+        store.dismiss(id + 99);
+        assert_eq!(store.revision(), 1);
+
+        store.dismiss(id);
+        assert_eq!(store.revision(), 2);
+
+        store.clear();
+        assert_eq!(store.revision(), 2);
+    }
+
+    #[test]
+    fn desktop_notification_request_maps_title_body_and_urgency() {
+        let mut hints = HashMap::new();
+        hints.insert(
+            "urgency".into(),
+            OwnedValue::try_from(2_u8).expect("owned urgency"),
+        );
+
+        let notification =
+            notification_from_desktop_request("org.example.Editor", "Build finished", "", &hints);
+
+        assert_eq!(notification.title, "Build finished");
+        assert_eq!(notification.body, "org.example.Editor");
+        assert_eq!(notification.urgency, NotificationUrgency::Critical);
+    }
+
+    #[test]
+    fn desktop_notification_request_uses_defaults_for_empty_fields() {
+        let notification = notification_from_desktop_request("   ", "   ", "   ", &HashMap::new());
+        assert_eq!(notification.title, "Notification");
+        assert!(notification.body.is_empty());
+        assert_eq!(notification.urgency, NotificationUrgency::Normal);
+
+        let notification =
+            notification_from_desktop_request("Mail", "   ", "You have mail", &HashMap::new());
+        assert_eq!(notification.title, "Mail");
+        assert_eq!(notification.body, "You have mail");
+    }
+
+    #[test]
+    fn desktop_notification_urgency_defaults_for_invalid_hints() {
+        let mut hints = HashMap::new();
+        hints.insert("urgency".into(), OwnedValue::from(true));
+        assert_eq!(
+            notification_urgency_from_hints(&hints),
+            NotificationUrgency::Normal
+        );
+
+        hints.insert(
+            "urgency".into(),
+            OwnedValue::try_from(0_i16).expect("owned signed urgency"),
+        );
+        assert_eq!(
+            notification_urgency_from_hints(&hints),
+            NotificationUrgency::Low
+        );
+    }
+
+    #[test]
+    fn desktop_notification_daemon_close_notification_dismisses_entry() {
+        let store = Arc::new(NotificationStore::default());
+        let daemon = DesktopNotificationDaemon {
+            notifications: Arc::clone(&store),
+        };
+        let id = store.push(Notification {
+            title: "one".into(),
+            body: String::new(),
+            urgency: NotificationUrgency::Normal,
+        });
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .expect("notification test runtime");
+        runtime.block_on(async move {
+            daemon.close_notification(id).await;
+        });
+
+        assert!(store.snapshot().is_empty());
+        assert_eq!(store.revision(), 2);
+    }
+
+    #[test]
+    fn shell_service_routes_views_and_manages_notifications() {
+        let commands = Arc::new(AtomicU8::new(ShellView::None as u8));
+        let notifications = Arc::new(NotificationStore::default());
+        let service = ShellService {
+            commands: Arc::clone(&commands),
+            notifications: Arc::clone(&notifications),
+        };
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .expect("shell service test runtime");
+        runtime.block_on(async move {
+            service.show_launcher().await;
+            service.show_overview().await;
+            service.show_notifications().await;
+            service.show_system_center().await;
+            service.show_settings().await;
+            service.show_power_menu().await;
+            service.toggle_launcher().await;
+            service.toggle_overview().await;
+            service.show_desktop().await;
+            service.post_notification(" title ", " body ").await;
+            service.clear_notifications().await;
+        });
+
+        assert_eq!(commands.load(Ordering::SeqCst), ShellView::Desktop as u8);
+        assert!(notifications.snapshot().is_empty());
+        assert_eq!(notifications.revision(), 2);
+    }
+
+    #[test]
+    fn desktop_notification_daemon_reports_capabilities_and_server_info() {
+        let daemon = DesktopNotificationDaemon {
+            notifications: Arc::new(NotificationStore::default()),
+        };
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .expect("desktop notification runtime");
+        let (capabilities, info) = runtime.block_on(async move {
+            (
+                daemon.get_capabilities().await,
+                daemon.get_server_information().await,
+            )
+        });
+
+        assert!(capabilities.iter().any(|capability| capability == "body"));
+        assert!(
+            capabilities
+                .iter()
+                .any(|capability| capability == "persistence")
+        );
+        assert_eq!(info.0, "SeatShell");
+        assert_eq!(info.1, "SeatShell");
+        assert_eq!(info.2, env!("CARGO_PKG_VERSION"));
+        assert_eq!(info.3, "1.2");
+    }
+
+    #[test]
+    fn desktop_notification_daemon_notify_replaces_existing_entry() {
+        let store = Arc::new(NotificationStore::default());
+        let daemon = DesktopNotificationDaemon {
+            notifications: Arc::clone(&store),
+        };
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .expect("desktop notification runtime");
+        let (first_id, second_id) = runtime.block_on(async move {
+            let first = daemon
+                .notify(
+                    "Mail",
+                    0,
+                    "",
+                    "First",
+                    "Body one",
+                    Vec::new(),
+                    HashMap::new(),
+                    5_000,
+                )
+                .await;
+            let second = daemon
+                .notify(
+                    "Mail",
+                    first,
+                    "",
+                    "Updated",
+                    "Body two",
+                    Vec::new(),
+                    HashMap::new(),
+                    5_000,
+                )
+                .await;
+            (first, second)
+        });
+
+        assert_eq!(first_id, second_id);
+        let snapshot = store.snapshot();
+        assert_eq!(snapshot.len(), 1);
+        assert_eq!(snapshot[0].id, first_id);
+        assert_eq!(snapshot[0].title, "Updated");
+        assert_eq!(snapshot[0].body, "Body two");
     }
 
     #[test]

@@ -9,9 +9,9 @@ At the moment, SeatShell is best understood as four things working together:
 1. a session launcher that starts and supervises the desktop stack
 2. a shell UI that renders the desktop, panel, launcher, overview, and notifications
 3. a user-side launch agent that starts apps and exposes session-local information
-4. an admin-side discovery daemon that reports users and sessions in a read-only way
+4. an admin-side discovery daemon that reports users and sessions and brokers guarded session-control actions
 
-Version `1.0.0` uses `labwc` as the compositor backend for the full session path.
+Version `0.1.0` uses `labwc` as the compositor backend for the full session path.
 
 ## Workspace Layout
 
@@ -22,12 +22,13 @@ Version `1.0.0` uses `labwc` as the compositor backend for the full session path
 
 - `crates/seatshell-shell`
   The main Slint application. It owns the visible desktop experience: panel, launcher, home surface, SingleSeat Overview, command surface, and notification center. It also exposes a shell D-Bus interface for remote view toggles and notification posting.
+  In the running session it also registers `org.freedesktop.Notifications`, so desktop notifications can be mirrored into the shell notification center.
 
 - `crates/seatshell-user-agent`
   A per-user session D-Bus service used for launching commands or desktop files in the current user context and for reporting simple session-local state such as running apps.
 
 - `crates/seatshell-admin-daemon`
-  A read-only admin discovery service. It currently lists users, sessions, and policy-group information. Mutating privileged behavior is intentionally deferred until authorization and audit design are stronger.
+  An admin discovery and session-control service. It currently lists users/sessions, reports policy-group information, and exposes guarded lock/logout/message/state actions. Cross-user delivery breadth and full Linux validation are still intentionally incomplete until authorization and audit design are stronger.
 
 ### Shared crates
 
@@ -87,7 +88,7 @@ Important surfaces include:
   A desktop settings scaffold for system integration work
 
 - `power-menu.slint`
-  Session and power-action scaffolds that remain non-operative until privileged Linux services are connected
+  Session and power-action surfaces. `lock` and `sign out` can hand off to the admin daemon; restart and power-off remain scaffolds until a system power backend is connected.
 
 Shared colors, spacing, and shape primitives are centralized in:
 
@@ -117,13 +118,17 @@ SeatShell uses D-Bus as the seam between session components.
 
 - bus name: `org.seatshell.Admin`
 - object path: `/org/seatshell/Admin`
-- current scope: read-only discovery
+- current scope: discovery, policy reporting, and guarded session control
 
 Methods currently implemented include:
 
 - `ListUsers`
 - `ListSessions`
 - `GetPolicyGroup`
+- `LockSession`
+- `LogoutSession`
+- `SendMessage`
+- `GetSessionState`
 
 ### User agent
 
@@ -144,7 +149,20 @@ Methods currently implemented include:
 - object path: `/org/seatshell/Shell`
 - current scope: view toggles and notification intake
 
-View methods include desktop, launcher, overview, notifications, system center, settings, and power-menu routing. Power actions exposed by the scaffold do not perform privileged mutations yet.
+View methods include desktop, launcher, overview, notifications, system center, settings, and power-menu routing. `lock` and `sign out` can already hand off to the admin daemon; restart and power-off remain scaffold actions until a system power backend exists.
+
+### Desktop notifications
+
+- bus name: `org.freedesktop.Notifications`
+- object path: `/org/freedesktop/Notifications`
+- current scope: in-session notification intake backed by SeatShell's notification center
+
+Methods currently implemented include:
+
+- `GetCapabilities`
+- `GetServerInformation`
+- `Notify`
+- `CloseNotification`
 
 ## Security Model
 
@@ -156,6 +174,12 @@ That means:
 - read-only discovery can ship earlier than mutation
 - previews, lock/logout controls, and cross-user launch must be authorization-aware
 - audit logging matters before admin controls become real
+
+Current implementation note:
+
+- same-user lock/logout and current-session message delivery are wired
+- audit logging is written under the SeatShell runtime log directory
+- cross-user messaging, previews, and full Linux authorization validation remain incomplete
 
 See [docs/SECURITY.md](SECURITY.md) for the current guardrails.
 

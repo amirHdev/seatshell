@@ -2,7 +2,7 @@
 
 SeatShell is a Rust/Slint Wayland shell focused on a built-in SingleSeat Overview for managing local user sessions.
 
-Version 1.0.0 uses labwc as the compositor backend. The shell UI starts as normal Slint windows, while the service layer exposes D-Bus interfaces for user-agent launch requests and read-only admin discovery.
+Version 0.1.0 uses labwc as the compositor backend. The shell UI starts as normal Slint windows, while the service layer exposes D-Bus interfaces for user-agent launch requests, desktop notification intake, and admin session discovery/control.
 
 ## Project Overview
 
@@ -18,15 +18,15 @@ The current architecture is a compact Rust workspace:
 - `seatshell-session` supervises the session lifecycle
 - `seatshell-shell` renders the UI in Slint
 - `seatshell-user-agent` launches apps in the user session
-- `seatshell-admin-daemon` exposes read-only session discovery
+- `seatshell-admin-daemon` exposes session discovery plus guarded session-control actions
 
 For more detail, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Version 1.0.0
+## Version 0.1.0
 
 This repository is at a first working release:
 
-- Cargo workspace packages are versioned at 1.0.0.
+- Cargo workspace packages are versioned at 0.1.0.
 - Shared config, session, protocol, and notification models build.
 - Slint shell window renders a desktop surface, panel, launcher, and SingleSeat Overview.
 - Desktop and launcher views expose clickable application rows with search/filter support, quick-launch picks, and recent-app recall.
@@ -34,12 +34,15 @@ This repository is at a first working release:
 - Launcher parses comment/category metadata so the shell can present richer desktop-friendly app cards.
 - Overview is fed from runtime session data through the admin D-Bus service, with a local fallback for development.
 - The running shell owns `org.seatshell.Shell`, so labwc hotkeys and menu actions control the existing shell instead of spawning extra overview/launcher windows.
+- The running shell also owns `org.freedesktop.Notifications`, so desktop notifications can flow into the SeatShell notification center.
 - Configured panel position is applied, so `panel.position = "top"` moves the panel to the top edge.
 - `seatshell-user-agent` registers launch and session-info D-Bus methods.
-- `seatshell-admin-daemon` registers read-only `ListUsers`, `ListSessions`, and policy-group D-Bus methods.
+- `seatshell-admin-daemon` registers `ListUsers`, `ListSessions`, `GetPolicyGroup`, `LockSession`, `LogoutSession`, `SendMessage`, and `GetSessionState`.
+- Overview/power flows can hand off `lock` and `sign out` to the admin daemon, with audit logs under the SeatShell runtime log directory.
 - `seatshell-session` starts labwc, the admin daemon, the user agent, and the shell from colocated binaries or an installed prefix.
 - Session logs are written under `~/.local/state/seatshell/logs` by default.
 - `scripts/run-seatshell.sh` now launches a standalone labwc-backed session by default and supports `--windowed` for nested desktop testing.
+- `scripts/smoke-macos.sh` validates the macOS-safe contributor path, including install/session metadata and windowed screenshot smoke coverage.
 - labwc/session resources are checked in.
 
 ## Development
@@ -52,6 +55,8 @@ cargo run -p seatshell-session -- --dev-dry-run
 cargo run -p seatshell-admin-daemon
 cargo run -p seatshell-user-agent
 cargo run -p seatshell-shell -- --windowed
+scripts/smoke-macos.sh
+scripts/smoke-shell-dbus.sh
 scripts/run-seatshell.sh --dry-run
 ```
 
@@ -76,6 +81,14 @@ That path is the best place to validate the shell UI on macOS:
 - inspect the panel, desktop, launcher, overview, command surface, and notifications
 - resize the window to catch spacing or clipping issues
 - confirm launcher search, pinned apps, recents, and overview keyboard navigation still behave correctly
+
+For the broader macOS-safe contributor check, prefer:
+
+```sh
+scripts/smoke-macos.sh
+```
+
+That path covers workspace checks/tests, temporary install validation, display-manager validator self-tests, and windowed screenshot smoke coverage without requiring a Linux login manager.
 
 If Cargo fails during linking on macOS, accept the Xcode license first:
 
@@ -133,7 +146,7 @@ To validate a real login-manager install on the host:
 PREFIX=/usr/local scripts/validate-display-manager-session.sh --strict-host
 ```
 
-That host validator detects the active display manager, checks whether `seatshell.desktop` is installed in a display-manager-visible Wayland session directory, validates the generated launcher, and runs it with `--dry-run`.
+That host validator detects the active display manager, checks whether `seatshell.desktop` is installed in a display-manager-visible Wayland session directory, validates the generated launcher, and runs it with `--dry-run` and `--dev-dry-run`.
 
 The default config is loaded from `/etc/seatshell/config.toml`, then `~/.config/seatshell/config.toml` when those files exist. Missing files are fine; built-in defaults are used, and partial user config now layers cleanly over system defaults instead of replacing them wholesale.
 

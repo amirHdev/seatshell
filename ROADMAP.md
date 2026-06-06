@@ -77,16 +77,18 @@ Objective: turn the shell from a proof-of-concept into something someone can liv
 
 ## Phase 3: Signature SingleSeat Overview
 
+Status: in progress. Read-only discovery, shell-side overview states, same-session authorized actions, and audit logging now exist; remaining work is Linux validation, cross-user delivery breadth, and privacy/consent behavior.
+
 Objective: make the overview the feature that justifies SeatShell existing.
 
 ### Milestones
 
 - [x] Read-only session discovery
 - [ ] Session previews with privacy boundaries
-- [ ] Real lock/logout/message actions behind authorization
-- [ ] Policy-aware admin controls and audit trail
+- [x] Real same-session lock/logout/message actions behind authorization
+- [x] Policy-aware admin controls and audit trail for implemented actions
 - [ ] Consent and visibility model for viewing another session
-- [ ] Clear distinction between current session, inactive session, and locked session
+- [x] Clear distinction between current session, inactive session, and locked session
 - [x] Overview keyboard navigation scaffolding
 - [ ] Overview bulk actions
 
@@ -97,6 +99,8 @@ Objective: make the overview the feature that justifies SeatShell existing.
 - the overview is clearly more than a decorative dashboard
 
 ## Phase 4: System Integration
+
+Status: in progress. SeatShell now exposes an in-session `org.freedesktop.Notifications` service and keeps a shell notification center in sync with it; remaining work is Linux-session validation and broader desktop-service integration.
 
 Objective: behave like a desktop environment instead of an app launcher with a panel.
 
@@ -112,7 +116,7 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 - [ ] Dock interaction parity with user expectations: focus, minimize/restore, running state, and active-window indication
 - [ ] Real active-window presence on the desktop surface instead of quiet-state placeholders when apps are running
 - [ ] Multi-monitor-aware desktop layout rules so icon placement and chrome do not break on different outputs
-- [ ] Notifications daemon integration
+- [x] Notifications daemon integration
 - [x] Audio status/control
 - [ ] Power/battery status
 - [x] NetworkManager status
@@ -131,13 +135,16 @@ Objective: behave like a desktop environment instead of an app launcher with a p
 
 ## Phase 5: Quality and Packaging
 
+Status: in progress. The repo now has macOS-first smoke coverage for install/session metadata, validator self-tests, and windowed screenshot capture; remaining work is Linux/VM integration coverage and distro packaging.
+
 Objective: make contributors and testers trust the project.
 
 ### Milestones
 
 - [ ] VM-based integration tests under `dbus-run-session`
 - [ ] labwc smoke tests
-- [ ] shell D-Bus control tests
+- [x] shell D-Bus control tests
+- [x] macOS smoke validation for install/session metadata and windowed shell screenshots
 - [ ] packaging for Debian, Arch, and Fedora
 - [ ] reproducible release checklist
 - [x] architecture docs for services and UI boundaries
@@ -238,7 +245,7 @@ The next concrete engineering targets for this repository are:
 
 1. Validate display-manager session startup end to end on a real login manager
 2. Add dock interaction parity for focus, minimize/restore, and running-state indication
-3. Add notification daemon integration beyond shell-local storage
-4. Start Phase 3 overview differentiation work for current, inactive, and locked sessions
+3. Validate notification daemon integration end to end on Linux session bus
+4. Validate real overview actions on Linux and extend cross-user delivery/consent behavior
 5. Add VM-based integration tests under `dbus-run-session`
 6. Add portal and polkit integration

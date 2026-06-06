@@ -28,6 +28,8 @@ Primary local checks:
 cargo fmt --all
 cargo check --workspace
 cargo test --workspace
+scripts/smoke-macos.sh
+scripts/smoke-shell-dbus.sh
 scripts/run-seatshell.sh --dry-run
 scripts/run-seatshell.sh --windowed --dry-run
 ```
@@ -44,6 +46,7 @@ For install validation:
 scripts/install-seatshell.sh --debug --prefix /tmp/seatshell-install
 PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
 PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
+scripts/validate-display-manager-session.sh --self-test
 ```
 
 More detailed testing guidance lives in [docs/TESTING.md](docs/TESTING.md).
