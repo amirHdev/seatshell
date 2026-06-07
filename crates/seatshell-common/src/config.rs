@@ -128,6 +128,8 @@ pub struct ControlConfig {
     pub allow_open_app_as_user: bool,
     pub allow_logout_user: bool,
     pub allow_lock_user: bool,
+    pub allow_restart_system: bool,
+    pub allow_power_off_system: bool,
     pub allow_input_control: bool,
 }
 
@@ -137,6 +139,8 @@ impl Default for ControlConfig {
             allow_open_app_as_user: true,
             allow_logout_user: true,
             allow_lock_user: true,
+            allow_restart_system: true,
+            allow_power_off_system: true,
             allow_input_control: false,
         }
     }

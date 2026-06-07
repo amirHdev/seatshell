@@ -81,6 +81,7 @@ export component AppWindow inherits Window {
     callback clear-notifications();
     callback dismiss-notification(int);
     callback open-file(string);
+    callback reveal-file(string);
     callback select-desktop-shortcut(string);
     callback clear-desktop-shortcut-selection();
     callback select-all-desktop-shortcuts();
@@ -273,6 +274,9 @@ export component AppWindow inherits Window {
                 }
                 open-file(path) => {
                     root.open-file(path);
+                }
+                reveal-file(path) => {
+                    root.reveal-file(path);
                 }
                 select-desktop-shortcut(app-id) => {
                     root.select-desktop-shortcut(app-id);

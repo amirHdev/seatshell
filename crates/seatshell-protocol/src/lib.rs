@@ -16,6 +16,8 @@ pub mod admin {
     pub const OPEN_APP_AS_USER: &str = "OpenAppAsUser";
     pub const LOCK_SESSION: &str = "LockSession";
     pub const LOGOUT_SESSION: &str = "LogoutSession";
+    pub const RESTART_SYSTEM: &str = "RestartSystem";
+    pub const POWER_OFF_SYSTEM: &str = "PowerOffSystem";
     pub const SEND_MESSAGE: &str = "SendMessage";
     pub const GET_SESSION_STATE: &str = "GetSessionState";
     pub const REQUEST_PREVIEW: &str = "RequestPreview";

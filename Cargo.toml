@@ -34,6 +34,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 walkdir = "2"
 zbus = "5"
 shlex = "1"
+url = "2"
 
 seatshell-common = { path = "crates/seatshell-common" }
 seatshell-config = { path = "crates/seatshell-config" }

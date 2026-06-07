@@ -4,6 +4,7 @@ set -eu
 PREFIX="${PREFIX:-}"
 STRICT_HOST=0
 SELF_TEST=0
+SKIP_HOST=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -16,6 +17,9 @@ while [ $# -gt 0 ]; do
             ;;
         --self-test)
             SELF_TEST=1
+            ;;
+        --skip-host)
+            SKIP_HOST=1
             ;;
         *)
             echo "Unknown argument: $1" >&2
@@ -112,12 +116,21 @@ validate_session_file() {
     try_exec_path="$(read_desktop_key TryExec "$file")"
 
     [ -n "$exec_path" ] || fail "session file $file is missing Exec"
+    case "$exec_path" in
+        /*) ;;
+        *) fail "session Exec target must be an absolute path: $exec_path" ;;
+    esac
     [ -x "$exec_path" ] || fail "session Exec target is not executable: $exec_path"
     [ -n "$try_exec_path" ] || fail "session file $file is missing TryExec"
+    case "$try_exec_path" in
+        /*) ;;
+        *) fail "session TryExec target must be an absolute path: $try_exec_path" ;;
+    esac
     [ "$try_exec_path" = "$exec_path" ] || fail "TryExec does not match Exec in $file"
     require_desktop_key Name "SeatShell" "$file"
     require_desktop_key Type "Application" "$file"
     [ -n "$(read_desktop_key Comment "$file")" ] || fail "session file $file is missing Comment"
+    require_desktop_key X-LightDM-DesktopName "SeatShell" "$file"
 
     if command -v desktop-file-validate >/dev/null 2>&1; then
         desktop-file-validate "$file" >/dev/null 2>&1 || fail "desktop-file-validate rejected $file"
@@ -200,6 +213,7 @@ Comment=SeatShell self-test
 Exec=$fake_launcher
 TryExec=$fake_launcher
 Type=Application
+X-LightDM-DesktopName=SeatShell
 EOF
 
     validate_session_file "$fake_session"
@@ -237,18 +251,20 @@ if [ -n "$PREFIX" ]; then
     info "Prefix session file validated: $SESSION_FILE"
 fi
 
-HOST_SESSION_FILE="$(first_existing_session_file || true)"
+if [ "$SKIP_HOST" -eq 0 ]; then
+    HOST_SESSION_FILE="$(first_existing_session_file || true)"
 
-if [ -n "$HOST_SESSION_FILE" ]; then
-    if [ "$STRICT_HOST" -eq 1 ] && ! strict_host_path_allowed "$HOST_SESSION_FILE" "$HOME"; then
-        fail "strict host validation requires a system-visible session file outside ~/.local/share/wayland-sessions"
-    fi
-    validate_session_file "$HOST_SESSION_FILE"
-    info "Host-visible session file validated: $HOST_SESSION_FILE"
-else
-    info "No host-visible SeatShell session file found in /usr/local/share/wayland-sessions, /usr/share/wayland-sessions, or ~/.local/share/wayland-sessions."
-    if [ "$STRICT_HOST" -eq 1 ]; then
-        fail "SeatShell is not installed into a display-manager-visible session directory"
+    if [ -n "$HOST_SESSION_FILE" ]; then
+        if [ "$STRICT_HOST" -eq 1 ] && ! strict_host_path_allowed "$HOST_SESSION_FILE" "$HOME"; then
+            fail "strict host validation requires a system-visible session file outside ~/.local/share/wayland-sessions"
+        fi
+        validate_session_file "$HOST_SESSION_FILE"
+        info "Host-visible session file validated: $HOST_SESSION_FILE"
+    else
+        info "No host-visible SeatShell session file found in /usr/local/share/wayland-sessions, /usr/share/wayland-sessions, or ~/.local/share/wayland-sessions."
+        if [ "$STRICT_HOST" -eq 1 ]; then
+            fail "SeatShell is not installed into a display-manager-visible session directory"
+        fi
     fi
 fi
 

@@ -3,11 +3,11 @@ set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 BIN_DIR="${SEATSHELL_BIN_DIR:-$ROOT/target/debug}"
-TIMEOUT="${SEATSHELL_LABWC_TIMEOUT:-20}"
+TIMEOUT="${SEATSHELL_SESSION_TIMEOUT:-20}"
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {
-        echo "SKIP: missing a required command: $1"
+        echo "SKIP: missing required command: $1"
         exit 0
     }
 }
@@ -33,7 +33,6 @@ timeout_command() {
 
 require_command dbus-run-session
 require_command gdbus
-require_command labwc
 require_binary seatshell-session
 require_binary seatshell-admin-daemon
 require_binary seatshell-user-agent
@@ -41,7 +40,7 @@ require_binary seatshell-shell
 
 if [ "${1:-}" != "--inside-dbus" ]; then
     TIMEOUT_CMD="$(timeout_command)"
-    TMP_OUT="$(mktemp "${TMPDIR:-/tmp}/seatshell-labwc-smoke-output.XXXXXX")"
+    TMP_OUT="$(mktemp "${TMPDIR:-/tmp}/seatshell-session-linux-output.XXXXXX")"
     trap 'rm -f "$TMP_OUT"' EXIT INT TERM
 
     if [ -n "$TIMEOUT_CMD" ]; then
@@ -64,9 +63,14 @@ if [ "${1:-}" != "--inside-dbus" ]; then
     exit "$status"
 fi
 
-TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/seatshell-labwc-smoke.XXXXXX")"
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/seatshell-session-linux.XXXXXX")"
 STATE_DIR="$TMP_DIR/state"
 LOG_DIR="$STATE_DIR/logs"
+cleanup() {
+    shutdown_session
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT INT TERM
 
 shutdown_session() {
     if [ -z "${SESSION_PID:-}" ]; then
@@ -98,19 +102,11 @@ shutdown_session() {
     SESSION_PID=""
 }
 
-cleanup() {
-    shutdown_session
-    rm -rf "$TMP_DIR"
-}
-trap cleanup EXIT INT TERM
-
 SEATSHELL_BIN_DIR="$BIN_DIR" \
-SEATSHELL_SHARE_DIR="$ROOT/resources" \
-SEATSHELL_LABWC_CONFIG_DIR="$ROOT/resources/labwc" \
 SEATSHELL_STATE_DIR="$STATE_DIR" \
 SEATSHELL_LOG_DIR="$LOG_DIR" \
 PATH="$BIN_DIR:$PATH" \
-"$BIN_DIR/seatshell-session" >"$TMP_DIR/session.out" 2>&1 &
+"$BIN_DIR/seatshell-session" --windowed >"$TMP_DIR/session.out" 2>&1 &
 SESSION_PID="$!"
 
 wait_for_name() {
@@ -132,8 +128,6 @@ wait_for_name() {
     sed -n '1,200p' "$TMP_DIR/session.out" || true
     echo "--- session.log ---"
     sed -n '1,200p' "$LOG_DIR/session.log" || true
-    echo "--- labwc.log ---"
-    sed -n '1,200p' "$LOG_DIR/labwc.log" || true
     echo "--- shell.log ---"
     sed -n '1,200p' "$LOG_DIR/seatshell-shell.log" || true
     echo "--- admin.log ---"
@@ -151,24 +145,20 @@ wait_for_name org.seatshell.Shell
 shutdown_session
 
 [ -f "$LOG_DIR/session.log" ] || {
-    echo "SeatShell labwc smoke test failed: missing $LOG_DIR/session.log"
-    exit 1
-}
-[ -f "$LOG_DIR/labwc.log" ] || {
-    echo "SeatShell labwc smoke test failed: missing $LOG_DIR/labwc.log"
+    echo "SeatShell session smoke failed: missing $LOG_DIR/session.log"
     exit 1
 }
 [ -f "$LOG_DIR/seatshell-admin-daemon.log" ] || {
-    echo "SeatShell labwc smoke test failed: missing $LOG_DIR/seatshell-admin-daemon.log"
+    echo "SeatShell session smoke failed: missing $LOG_DIR/seatshell-admin-daemon.log"
     exit 1
 }
 [ -f "$LOG_DIR/seatshell-user-agent.log" ] || {
-    echo "SeatShell labwc smoke test failed: missing $LOG_DIR/seatshell-user-agent.log"
+    echo "SeatShell session smoke failed: missing $LOG_DIR/seatshell-user-agent.log"
     exit 1
 }
 [ -f "$LOG_DIR/seatshell-shell.log" ] || {
-    echo "SeatShell labwc smoke test failed: missing $LOG_DIR/seatshell-shell.log"
+    echo "SeatShell session smoke failed: missing $LOG_DIR/seatshell-shell.log"
     exit 1
 }
 
-echo "SeatShell labwc smoke test completed"
+echo "SeatShell session smoke test completed"

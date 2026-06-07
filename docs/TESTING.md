@@ -8,6 +8,8 @@ cargo check --workspace
 cargo test --workspace
 scripts/smoke-macos.sh
 scripts/smoke-shell-dbus.sh
+scripts/smoke-session-linux.sh
+scripts/smoke-linux-vm.sh
 scripts/smoke-windowed-shell.sh
 scripts/validate-display-manager-session.sh --self-test
 cargo run -p seatshell-shell
@@ -20,7 +22,7 @@ scripts/run-seatshell.sh --windowed --dry-run
 scripts/smoke-dbus.sh
 scripts/install-seatshell.sh --debug --prefix /tmp/seatshell-install
 PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
-PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
+PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh --skip-host
 ```
 
 `seatshell-shell` uses a Slint build script, so macOS checks and tests link a host build binary. If Cargo reports that the Xcode license has not been accepted, run `sudo xcodebuild -license` in Terminal before running full workspace checks.
@@ -81,7 +83,7 @@ scripts/run-seatshell.sh --dry-run
 scripts/run-seatshell.sh --windowed --dry-run
 scripts/install-seatshell.sh --debug --prefix /tmp/seatshell-install
 PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
-PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
+PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh --skip-host
 ```
 
 For the service-pair D-Bus smoke that targets the admin daemon and user agent directly:
@@ -92,10 +94,36 @@ scripts/smoke-dbus.sh
 
 That script starts `seatshell-admin-daemon` and `seatshell-user-agent` inside `dbus-run-session` and verifies that their registered methods respond. It skips when `dbus-run-session` or `gdbus` is unavailable.
 
+For a Linux session smoke that does not require a display manager:
+
+```sh
+scripts/smoke-session-linux.sh
+```
+
+That script starts `seatshell-session --windowed` on a private session bus,
+waits for `org.seatshell.Admin`, `org.seatshell.UserAgent.u<uid>`, and
+`org.seatshell.Shell`, and then shuts the session down cleanly. It is the
+fastest host-safe Linux gate for the session supervisor path.
+
+For the broader Linux VM regression gate:
+
+```sh
+scripts/smoke-linux-vm.sh
+```
+
+That script builds the workspace, runs `scripts/smoke-dbus.sh`,
+`scripts/smoke-session-linux.sh`, and `scripts/smoke-labwc.sh`, installs into a
+temporary prefix, validates the install tree, and validates the generated
+display-manager session metadata. Add `--strict-host` when the VM or host also
+has a real system-visible SeatShell session installed under `/usr/local` or
+`/usr/share`.
+
 Then move to a Linux VM with labwc:
 
 ```sh
 cargo build --workspace
+scripts/smoke-session-linux.sh
+scripts/smoke-linux-vm.sh
 scripts/smoke-labwc.sh
 ```
 

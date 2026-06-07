@@ -763,6 +763,7 @@ component RecentFileRow inherits Rectangle {
     in property <string> detail;
 
     callback clicked();
+    callback reveal-clicked();
 
     height: 38px;
     horizontal-stretch: 1;
@@ -826,6 +827,30 @@ component RecentFileRow inherits Rectangle {
                 font-size: 9px;
                 overflow: elide;
                 horizontal-stretch: 1;
+            }
+        }
+
+        Rectangle {
+            width: 26px;
+            height: 26px;
+            background: reveal-touch.has-hover ? #ffffff16 : #ffffff08;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #ffffff20;
+
+            ShellIcon {
+                x: 7px;
+                y: 7px;
+                width: 12px;
+                height: 12px;
+                name: "file";
+                icon-color: ShellTheme.text-secondary;
+            }
+
+            reveal-touch := TouchArea {
+                clicked => {
+                    root.reveal-clicked();
+                }
             }
         }
     }
@@ -936,6 +961,7 @@ export component Desktop inherits Rectangle {
     callback move-window(string, int, int, int, int);
     callback resize-window(string, int, int);
     callback open-file(string);
+    callback reveal-file(string);
     callback select-desktop-shortcut(string);
     callback clear-desktop-shortcut-selection();
     callback select-all-desktop-shortcuts();
@@ -1310,6 +1336,9 @@ export component Desktop inherits Rectangle {
 
                         clicked => {
                             root.open-file(file.path);
+                        }
+                        reveal-clicked => {
+                            root.reveal-file(file.path);
                         }
                     }
                 }

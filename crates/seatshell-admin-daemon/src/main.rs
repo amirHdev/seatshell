@@ -10,10 +10,9 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    process::Stdio,
+    process::{Command, Stdio},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::process::Command;
 use tracing_subscriber::EnvFilter;
 use zbus::{
     Connection, Proxy,
@@ -30,6 +29,8 @@ struct AdminService {
     log_actions: bool,
     allow_logout_user: bool,
     allow_lock_user: bool,
+    allow_restart_system: bool,
+    allow_power_off_system: bool,
     notify_user_on_admin_action: bool,
 }
 
@@ -40,6 +41,8 @@ impl AdminService {
         log_actions: bool,
         allow_logout_user: bool,
         allow_lock_user: bool,
+        allow_restart_system: bool,
+        allow_power_off_system: bool,
         notify_user_on_admin_action: bool,
     ) -> Self {
         Self {
@@ -48,6 +51,8 @@ impl AdminService {
             log_actions,
             allow_logout_user,
             allow_lock_user,
+            allow_restart_system,
+            allow_power_off_system,
             notify_user_on_admin_action,
         }
     }
@@ -57,6 +62,8 @@ impl AdminService {
             require_reauth: self.require_reauth,
             allow_logout_user: self.allow_logout_user,
             allow_lock_user: self.allow_lock_user,
+            allow_restart_system: self.allow_restart_system,
+            allow_power_off_system: self.allow_power_off_system,
         }
     }
 }
@@ -65,6 +72,8 @@ impl AdminService {
 enum AdminAction {
     LockSession,
     LogoutSession,
+    RestartSystem,
+    PowerOffSystem,
     SendMessage,
 }
 
@@ -73,6 +82,8 @@ impl AdminAction {
         match self {
             Self::LockSession => "org.seatshell.admin.lock-session",
             Self::LogoutSession => "org.seatshell.admin.logout-session",
+            Self::RestartSystem => "org.seatshell.admin.restart-system",
+            Self::PowerOffSystem => "org.seatshell.admin.power-off-system",
             Self::SendMessage => "org.seatshell.admin.send-message",
         }
     }
@@ -81,6 +92,8 @@ impl AdminAction {
         match self {
             Self::LockSession => admin::LOCK_SESSION,
             Self::LogoutSession => admin::LOGOUT_SESSION,
+            Self::RestartSystem => admin::RESTART_SYSTEM,
+            Self::PowerOffSystem => admin::POWER_OFF_SYSTEM,
             Self::SendMessage => admin::SEND_MESSAGE,
         }
     }
@@ -104,6 +117,8 @@ struct RuntimePolicy {
     require_reauth: bool,
     allow_logout_user: bool,
     allow_lock_user: bool,
+    allow_restart_system: bool,
+    allow_power_off_system: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -218,6 +233,50 @@ impl AdminService {
         Ok(())
     }
 
+    async fn restart_system(
+        &self,
+        session_id: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let authorized = self
+            .authorize_action(connection, &header, AdminAction::RestartSystem, session_id)
+            .await?;
+        restart_system_with_logind()
+            .await
+            .map_err(to_fdo_failed("failed to restart system"))?;
+        self.audit_action(
+            AdminAction::RestartSystem,
+            &authorized,
+            "allowed",
+            session_id,
+            None,
+        );
+        Ok(())
+    }
+
+    async fn power_off_system(
+        &self,
+        session_id: &str,
+        #[zbus(connection)] connection: &Connection,
+        #[zbus(header)] header: Header<'_>,
+    ) -> zbus::fdo::Result<()> {
+        let authorized = self
+            .authorize_action(connection, &header, AdminAction::PowerOffSystem, session_id)
+            .await?;
+        power_off_system_with_logind()
+            .await
+            .map_err(to_fdo_failed("failed to power off system"))?;
+        self.audit_action(
+            AdminAction::PowerOffSystem,
+            &authorized,
+            "allowed",
+            session_id,
+            None,
+        );
+        Ok(())
+    }
+
     async fn send_message(
         &self,
         session_id: &str,
@@ -279,6 +338,8 @@ async fn main() -> Result<()> {
         println!("  - {}", admin::GET_POLICY_GROUP);
         println!("  - {}", admin::LOCK_SESSION);
         println!("  - {}", admin::LOGOUT_SESSION);
+        println!("  - {}", admin::RESTART_SYSTEM);
+        println!("  - {}", admin::POWER_OFF_SYSTEM);
         println!("  - {}", admin::SEND_MESSAGE);
         println!("  - {}", admin::GET_SESSION_STATE);
         println!("planned privileged methods:");
@@ -302,6 +363,8 @@ async fn main() -> Result<()> {
                 config.admin.log_actions,
                 config.control.allow_logout_user,
                 config.control.allow_lock_user,
+                config.control.allow_restart_system,
+                config.control.allow_power_off_system,
                 config.privacy.notify_user_on_admin_action,
             ),
         )?
@@ -658,7 +721,6 @@ async fn require_polkit_reauth(caller: &CallerIdentity, action: AdminAction) -> 
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .await
         .context("failed to run pkcheck")?;
 
     if status.success() {
@@ -675,7 +737,6 @@ async fn lock_session_with_logind(session_id: &str) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .await
         .context("failed to run loginctl lock-session")?;
 
     if status.success() {
@@ -692,7 +753,6 @@ async fn logout_session_with_logind(session_id: &str) -> Result<()> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .await
         .context("failed to run loginctl terminate-session")?;
 
     if status.success() {
@@ -700,6 +760,34 @@ async fn logout_session_with_logind(session_id: &str) -> Result<()> {
     } else {
         anyhow::bail!("loginctl terminate-session exited with {status}");
     }
+}
+
+async fn restart_system_with_logind() -> Result<()> {
+    run_system_power_command([["loginctl", "reboot"], ["systemctl", "reboot"]]).await
+}
+
+async fn power_off_system_with_logind() -> Result<()> {
+    run_system_power_command([["loginctl", "poweroff"], ["systemctl", "poweroff"]]).await
+}
+
+async fn run_system_power_command<const N: usize>(commands: [[&str; 2]; N]) -> Result<()> {
+    let mut errors = Vec::new();
+
+    for [program, arg] in commands {
+        match Command::new(program)
+            .arg(arg)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+        {
+            Ok(status) if status.success() => return Ok(()),
+            Ok(status) => errors.push(format!("{program} {arg} exited with {status}")),
+            Err(error) => errors.push(format!("failed to run {program} {arg}: {error}")),
+        }
+    }
+
+    anyhow::bail!("{}", errors.join("; "))
 }
 
 async fn send_message_to_session(target: &SessionInfo, message: &str) -> Result<()> {
@@ -846,6 +934,8 @@ fn action_enabled(policy: RuntimePolicy, action: AdminAction) -> bool {
     match action {
         AdminAction::LockSession => policy.allow_lock_user,
         AdminAction::LogoutSession => policy.allow_logout_user,
+        AdminAction::RestartSystem => policy.allow_restart_system,
+        AdminAction::PowerOffSystem => policy.allow_power_off_system,
         AdminAction::SendMessage => true,
     }
 }
@@ -911,6 +1001,8 @@ mod tests {
             require_reauth: true,
             allow_logout_user: true,
             allow_lock_user: true,
+            allow_restart_system: true,
+            allow_power_off_system: true,
         }
     }
 
@@ -1000,6 +1092,14 @@ mod tests {
             AdminAction::LogoutSession.method_name(),
             admin::LOGOUT_SESSION
         );
+        assert_eq!(
+            AdminAction::RestartSystem.method_name(),
+            admin::RESTART_SYSTEM
+        );
+        assert_eq!(
+            AdminAction::PowerOffSystem.method_name(),
+            admin::POWER_OFF_SYSTEM
+        );
         assert_eq!(AdminAction::SendMessage.method_name(), admin::SEND_MESSAGE);
     }
 
@@ -1049,6 +1149,8 @@ mod tests {
                 require_reauth: true,
                 allow_logout_user: false,
                 allow_lock_user: true,
+                allow_restart_system: true,
+                allow_power_off_system: true,
             },
             AdminAction::LogoutSession,
             1000,
@@ -1056,6 +1158,26 @@ mod tests {
             true,
         )
         .expect_err("disabled action should be denied");
+
+        assert_eq!(failure, AuthorizationFailure::Disabled);
+    }
+
+    #[test]
+    fn authorization_plan_honors_disabled_power_policy() {
+        let failure = authorization_plan(
+            RuntimePolicy {
+                require_reauth: true,
+                allow_logout_user: true,
+                allow_lock_user: true,
+                allow_restart_system: false,
+                allow_power_off_system: true,
+            },
+            AdminAction::RestartSystem,
+            1000,
+            1000,
+            true,
+        )
+        .expect_err("disabled restart action should be denied");
 
         assert_eq!(failure, AuthorizationFailure::Disabled);
     }

@@ -24,6 +24,7 @@ use std::{
     time::Duration,
 };
 use tracing_subscriber::EnvFilter;
+use url::Url;
 use zbus::{Proxy, connection::Builder, interface, zvariant::OwnedValue};
 
 mod apps;
@@ -382,9 +383,13 @@ fn main() -> Result<()> {
                 "sign out" => {
                     request_admin_session_action(admin::LOGOUT_SESSION, &current_session_id())
                 }
-                _ => Err(anyhow::anyhow!(
-                    "{action_name} still depends on a system power service"
-                )),
+                "restart" => {
+                    request_admin_session_action(admin::RESTART_SYSTEM, &current_session_id())
+                }
+                "power off" => {
+                    request_admin_session_action(admin::POWER_OFF_SYSTEM, &current_session_id())
+                }
+                _ => Err(anyhow::anyhow!("unsupported shell action: {action_name}")),
             };
 
             match result {
@@ -397,15 +402,6 @@ fn main() -> Result<()> {
                     if let Some(ui) = weak.upgrade() {
                         ui.set_show_power_menu(false);
                     }
-                }
-                Err(error) if matches!(action_name.as_str(), "restart" | "power off") => {
-                    tracing::info!(%error, action = %action_name, "shell action remains scaffolded");
-                    notifications.push(Notification {
-                        title: format!("{action_name} is not connected yet"),
-                        body: "Restart and power off still need a system power integration path."
-                            .into(),
-                        urgency: NotificationUrgency::Normal,
-                    });
                 }
                 Err(error) => {
                     tracing::warn!(%error, action = %action_name, "shell action failed");
@@ -427,6 +423,20 @@ fn main() -> Result<()> {
                 notifications.push(Notification {
                     title: "Open file failed".into(),
                     body: "Could not open the selected file.".into(),
+                    urgency: NotificationUrgency::Critical,
+                });
+            }
+        });
+    }
+
+    {
+        let notifications = Arc::clone(&notifications);
+        ui.on_reveal_file(move |path| {
+            if let Err(error) = reveal_path(path.as_str()) {
+                tracing::warn!(%error, path = %path, "failed to reveal file");
+                notifications.push(Notification {
+                    title: "Reveal file failed".into(),
+                    body: "Could not show the selected file in the file manager.".into(),
                     urgency: NotificationUrgency::Critical,
                 });
             }
@@ -2235,6 +2245,47 @@ fn open_path(path: &str) -> Result<()> {
     Ok(())
 }
 
+fn reveal_path(path: &str) -> Result<()> {
+    let resolved = fs::canonicalize(path).unwrap_or_else(|_| PathBuf::from(path));
+
+    if reveal_path_via_file_manager(&resolved).is_ok() {
+        return Ok(());
+    }
+
+    let fallback = resolved.parent().unwrap_or(resolved.as_path());
+    open_path(
+        fallback
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("path contains non-utf8 characters"))?,
+    )
+}
+
+fn reveal_path_via_file_manager(path: &Path) -> Result<()> {
+    let file_url = Url::from_file_path(path)
+        .map_err(|_| anyhow::anyhow!("failed to convert file path to URI"))?
+        .to_string();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_io()
+        .enable_time()
+        .build()?;
+
+    runtime.block_on(async move {
+        let connection = zbus::Connection::session().await?;
+        let proxy = Proxy::new(
+            &connection,
+            "org.freedesktop.FileManager1",
+            "/org/freedesktop/FileManager1",
+            "org.freedesktop.FileManager1",
+        )
+        .await?;
+
+        proxy
+            .call_method("ShowItems", &(vec![file_url], String::new()))
+            .await?;
+        Ok(())
+    })
+}
+
 fn clock_text() -> String {
     Local::now().format("%a %H:%M").to_string()
 }
@@ -2459,40 +2510,79 @@ fn shorten_connection(name: &str) -> String {
 }
 
 fn power_status_text() -> String {
-    let entries = std::fs::read_dir("/sys/class/power_supply");
-    let Ok(entries) = entries else {
+    let root = std::env::var_os("SEATSHELL_POWER_SUPPLY_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/sys/class/power_supply"));
+    power_status_text_from_dir(&root)
+}
+
+fn power_status_text_from_dir(root: &Path) -> String {
+    let Ok(entries) = std::fs::read_dir(root) else {
         return "AC".into();
     };
 
+    let mut capacities = Vec::new();
+    let mut charging = false;
+    let mut discharging = false;
+    let mut online_power = false;
+
     for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
-        if !name.starts_with("BAT") {
+        let supply_type = std::fs::read_to_string(path.join("type"))
+            .unwrap_or_default()
+            .trim()
+            .to_ascii_lowercase();
+
+        let is_battery = supply_type == "battery" || name.starts_with("BAT");
+        if is_battery {
+            let Ok(capacity) = std::fs::read_to_string(path.join("capacity"))
+                .unwrap_or_default()
+                .trim()
+                .parse::<i32>()
+            else {
+                continue;
+            };
+            let status = std::fs::read_to_string(path.join("status"))
+                .unwrap_or_default()
+                .trim()
+                .to_ascii_lowercase();
+
+            capacities.push(capacity.clamp(0, 100));
+            charging |= status == "charging" || status == "full";
+            discharging |= status == "discharging";
             continue;
         }
 
-        let capacity = std::fs::read_to_string(entry.path().join("capacity"))
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        let status = std::fs::read_to_string(entry.path().join("status"))
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-
-        if capacity.is_empty() {
-            continue;
+        let is_external_power = matches!(
+            supply_type.as_str(),
+            "mains" | "usb" | "usb-c" | "usb_pd" | "wireless"
+        ) || name.starts_with("AC")
+            || name.starts_with("ADP");
+        if is_external_power {
+            online_power |= std::fs::read_to_string(path.join("online"))
+                .unwrap_or_default()
+                .trim()
+                == "1";
         }
-
-        let prefix = if status.eq_ignore_ascii_case("charging") {
-            "CHR"
-        } else {
-            "BAT"
-        };
-
-        return format!("{prefix} {capacity}%");
     }
 
-    "AC".into()
+    if capacities.is_empty() {
+        return if online_power {
+            "AC".into()
+        } else {
+            "PWR".into()
+        };
+    }
+
+    let average = capacities.iter().sum::<i32>() / capacities.len() as i32;
+    if discharging && average <= 10 {
+        format!("LOW {average}%")
+    } else if charging || online_power {
+        format!("CHR {average}%")
+    } else {
+        format!("BAT {average}%")
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -4216,6 +4306,53 @@ mod tests {
         );
         assert_eq!(parse_pactl_mute("Mute: yes"), Some(true));
         assert_eq!(parse_pactl_mute("Mute: no"), Some(false));
+    }
+
+    #[test]
+    fn power_status_prefers_charging_battery_average() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("seatshell-power-{unique}"));
+        let bat0 = root.join("BAT0");
+        let bat1 = root.join("BAT1");
+        let ac = root.join("AC");
+
+        std::fs::create_dir_all(&bat0).expect("bat0 dir");
+        std::fs::create_dir_all(&bat1).expect("bat1 dir");
+        std::fs::create_dir_all(&ac).expect("ac dir");
+        std::fs::write(bat0.join("type"), "Battery\n").expect("bat0 type");
+        std::fs::write(bat0.join("capacity"), "80\n").expect("bat0 capacity");
+        std::fs::write(bat0.join("status"), "Charging\n").expect("bat0 status");
+        std::fs::write(bat1.join("type"), "Battery\n").expect("bat1 type");
+        std::fs::write(bat1.join("capacity"), "60\n").expect("bat1 capacity");
+        std::fs::write(bat1.join("status"), "Charging\n").expect("bat1 status");
+        std::fs::write(ac.join("type"), "Mains\n").expect("ac type");
+        std::fs::write(ac.join("online"), "1\n").expect("ac online");
+
+        assert_eq!(power_status_text_from_dir(&root), "CHR 70%");
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn power_status_reports_low_battery_when_discharging() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("seatshell-power-low-{unique}"));
+        let bat0 = root.join("BAT0");
+
+        std::fs::create_dir_all(&bat0).expect("bat0 dir");
+        std::fs::write(bat0.join("type"), "Battery\n").expect("bat0 type");
+        std::fs::write(bat0.join("capacity"), "9\n").expect("bat0 capacity");
+        std::fs::write(bat0.join("status"), "Discharging\n").expect("bat0 status");
+
+        assert_eq!(power_status_text_from_dir(&root), "LOW 9%");
+
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]

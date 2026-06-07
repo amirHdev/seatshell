@@ -57,6 +57,8 @@ cargo run -p seatshell-user-agent
 cargo run -p seatshell-shell -- --windowed
 scripts/smoke-macos.sh
 scripts/smoke-shell-dbus.sh
+scripts/smoke-session-linux.sh
+scripts/smoke-linux-vm.sh
 scripts/run-seatshell.sh --dry-run
 ```
 
@@ -103,6 +105,22 @@ scripts/run-seatshell.sh --windowed
 scripts/run-seatshell.sh
 ```
 
+For the current Linux smoke gate without a display manager, prefer:
+
+```sh
+scripts/smoke-session-linux.sh
+scripts/smoke-linux-vm.sh
+```
+
+`scripts/smoke-session-linux.sh` verifies that `seatshell-session --windowed`
+brings up `org.seatshell.Admin`, `org.seatshell.UserAgent.u<uid>`, and
+`org.seatshell.Shell` on a private session bus and then shuts down cleanly.
+
+`scripts/smoke-linux-vm.sh` is the broader Linux/VM path: it builds the
+workspace, runs D-Bus and session smokes, exercises the `labwc` session when
+available, installs into a temporary prefix, and validates the generated
+session metadata.
+
 With a shell already running, control that process through D-Bus:
 
 ```sh
@@ -130,7 +148,7 @@ Install into a temporary or custom prefix for validation:
 ```sh
 scripts/install-seatshell.sh --debug --prefix /tmp/seatshell-install
 PREFIX=/tmp/seatshell-install scripts/validate-seathell-install.sh
-PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh
+PREFIX=/tmp/seatshell-install scripts/validate-display-manager-session.sh --skip-host
 ```
 
 The installer now generates:
@@ -144,6 +162,7 @@ To validate a real login-manager install on the host:
 
 ```sh
 PREFIX=/usr/local scripts/validate-display-manager-session.sh --strict-host
+scripts/smoke-linux-vm.sh --strict-host
 ```
 
 That host validator detects the active display manager, checks whether `seatshell.desktop` is installed in a display-manager-visible Wayland session directory, validates the generated launcher, and runs it with `--dry-run` and `--dev-dry-run`.

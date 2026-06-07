@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use seatshell_protocol::{USER_AGENT_BUS_NAME_PREFIX, USER_AGENT_OBJECT_PATH, user_agent};
-use std::process::Stdio;
-use tokio::process::Command;
+use std::process::{Command, Stdio};
 use tracing_subscriber::EnvFilter;
 use zbus::{Connection, connection::Builder, fdo::DBusProxy, interface, message::Header};
 
@@ -106,7 +105,6 @@ impl UserAgent {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .output()
-            .await
             .map_err(|err| zbus::fdo::Error::Failed(format!("failed to list processes: {err}")))?;
 
         if !output.status.success() {

@@ -23,6 +23,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 walkdir.workspace = true
 zbus.workspace = true
+url.workspace = true
 
 [build-dependencies]
 slint-build.workspace = true
