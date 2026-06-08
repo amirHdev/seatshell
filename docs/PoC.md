@@ -20,7 +20,8 @@
 ## Next
 
 1. Validate display-manager startup, shell notifications, and admin session actions end to end on Linux.
-2. Add Linux VM integration tests under `dbus-run-session labwc`.
-3. Replace Slint top-level windows with native compositor shell surfaces.
-4. Expand cross-user delivery, previews, and consent-aware overview behavior.
-5. Add distribution packaging and release artifacts.
+2. Validate ui and desktop env and seek required things for this version
+3. Add Linux VM integration tests under `dbus-run-session labwc`.
+4. Replace Slint top-level windows with native compositor shell surfaces.
+5. Expand cross-user delivery, previews, and consent-aware overview behavior.
+6. Add distribution packaging and release artifacts.
