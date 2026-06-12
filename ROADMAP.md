@@ -1,6 +1,6 @@
 # SeatShell Roadmap
 
-SeatShell is a Rust/Slint Wayland shell centered on a built-in SingleSeat Overview for managing local sessions without turning into a full KDE or GNOME clone. The goal is not feature parity with the large desktop environments. The goal is a focused shell with a clear point of view, reliable session behavior, and a signature user/session-management experience.
+SeatShell is a Rust Wayland shell centered on a built-in SingleSeat Overview for managing local sessions without turning into a full KDE or GNOME clone. The goal is not feature parity with the large desktop environments. The goal is a focused shell with a clear point of view, reliable session behavior, and a signature user/session-management experience.
 
 This roadmap is ordered by product value and engineering risk. Each phase should leave the project in a shippable state.
 
